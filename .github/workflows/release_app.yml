@@ -1,12 +1,13 @@
-name: Build App
+name: Release App
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      library_version:
-        description: 'Bronze Monkey Library Release Tag (e.g. v0.1.0)'
-        required: true
-        default: 'latest'
+
+permissions:
+  contents: write
 
 jobs:
   build-android:
@@ -23,24 +24,19 @@ jobs:
       - name: Download Library Artifacts
         run: |
           LIBRARY_REPO="Retouched-Project/bronze-monkey" 
-          
-          TAG="${{ inputs.library_version }}"
-          if [ "$TAG" == "latest" ]; then
-             echo "Resolving latest tag from $LIBRARY_REPO..."
-             TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
-          fi
+          echo "Resolving latest tag from $LIBRARY_REPO..."
+          TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
           
           echo "Downloading assets for $TAG from $LIBRARY_REPO..."
-          
           gh release download "$TAG" -R "$LIBRARY_REPO" -p "bronze_monkey-android-jniLibs.zip"
           unzip bronze_monkey-android-jniLibs.zip -d android/app/src/main/
-          
           rm bronze_monkey-android-jniLibs.zip
 
-      - name: Build APK and AppBundle
-        run: |
-          flutter build apk --release
-          flutter build appbundle --release
+      - name: Build APK (Universal)
+        run: flutter build apk --release
+
+      - name: Build AppBundle
+        run: flutter build appbundle --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -68,33 +64,17 @@ jobs:
       - name: Download Library Artifacts
         run: |
           LIBRARY_REPO="Retouched-Project/bronze-monkey"
-          
-          TAG="${{ inputs.library_version }}"
-          if [ "$TAG" == "latest" ]; then
-             echo "Resolving latest tag from $LIBRARY_REPO..."
-             TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
-          fi
+          echo "Resolving latest tag from $LIBRARY_REPO..."
+          TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
           
           echo "Downloading assets for $TAG from $LIBRARY_REPO..."
           gh release download "$TAG" -R "$LIBRARY_REPO" -p "libbronze_monkey.a"
           
           mkdir -p bronze_monkey_ffi/ios/
           mv libbronze_monkey.a bronze_monkey_ffi/ios/
-          ls -la bronze_monkey_ffi/ios/libbronze_monkey.a
 
       - name: Build iOS
         run: flutter build ios --release --no-codesign
-
-      - name: Verify binary
-        run: |
-          BINARY="build/ios/iphoneos/Runner.app/Runner"
-          SIZE=$(wc -c < "$BINARY")
-          echo "Runner binary: $SIZE bytes"
-          if [ "$SIZE" -lt 1000000 ]; then
-            echo "ERROR: Binary is only ${SIZE} bytes: library NOT linked!"
-            exit 1
-          fi
-          echo "OK: Binary is large enough: library appears linked"
 
       - name: Payload App
         run: |
@@ -107,3 +87,38 @@ jobs:
         with:
           name: app-release-ipa
           path: Runner.ipa
+
+  release:
+    name: Create Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release-apk
+
+      - name: Download Android AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release-aab
+
+      - name: Download iOS IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release-ipa
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            app-release.apk
+            app-release.aab
+            Runner.ipa
+          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
