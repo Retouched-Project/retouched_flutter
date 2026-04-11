@@ -22,6 +22,8 @@ jobs:
           channel: 'stable'
 
       - name: Download Library Artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           LIBRARY_REPO="Retouched-Project/bronze-monkey" 
           echo "Resolving latest tag from $LIBRARY_REPO..."
@@ -62,6 +64,8 @@ jobs:
           channel: 'stable'
 
       - name: Download Library Artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           LIBRARY_REPO="Retouched-Project/bronze-monkey"
           echo "Resolving latest tag from $LIBRARY_REPO..."
