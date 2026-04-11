@@ -1,0 +1,17 @@
+name: bronze_monkey_ffi
+description: Flutter plugin wrapping the Bronze Monkey Rust static library.
+version: 0.0.1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.3.0"
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: BronzeMonkeyFfiPlugin
+
+dependencies:
+  flutter:
+    sdk: flutter

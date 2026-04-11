@@ -1,0 +1,110 @@
+name: Build App
+
+on:
+  workflow_dispatch:
+    inputs:
+      library_version:
+        description: 'Bronze Monkey Library Release Tag (e.g. v0.1.0)'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Download Library Artifacts
+        run: |
+          LIBRARY_REPO="Retouched-Project/bronze-monkey" 
+          
+          TAG="${{ inputs.library_version }}"
+          if [ "$TAG" == "latest" ]; then
+             echo "Resolving latest tag from $LIBRARY_REPO..."
+             TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
+          fi
+          
+          echo "Downloading assets for $TAG from $LIBRARY_REPO..."
+          
+          gh release download "$TAG" -R "$LIBRARY_REPO" -p "bronze_monkey-android-jniLibs.zip"
+          unzip bronze_monkey-android-jniLibs.zip -d android/app/src/main/
+          
+          rm bronze_monkey-android-jniLibs.zip
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build AppBundle
+        run: flutter build appbundle --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Download Library Artifacts
+        run: |
+          LIBRARY_REPO="Retouched-Project/bronze-monkey"
+          
+          TAG="${{ inputs.library_version }}"
+          if [ "$TAG" == "latest" ]; then
+             echo "Resolving latest tag from $LIBRARY_REPO..."
+             TAG=$(gh release list -R "$LIBRARY_REPO" --limit 1 | cut -f1)
+          fi
+          
+          echo "Downloading assets for $TAG from $LIBRARY_REPO..."
+          gh release download "$TAG" -R "$LIBRARY_REPO" -p "libbronze_monkey.a"
+          
+          mkdir -p bronze_monkey_ffi/ios/
+          mv libbronze_monkey.a bronze_monkey_ffi/ios/
+          ls -la bronze_monkey_ffi/ios/libbronze_monkey.a
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+
+      - name: Verify binary
+        run: |
+          BINARY="build/ios/iphoneos/Runner.app/Runner"
+          SIZE=$(wc -c < "$BINARY")
+          echo "Runner binary: $SIZE bytes"
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "ERROR: Binary is only ${SIZE} bytes: library NOT linked!"
+            exit 1
+          fi
+          echo "OK: Binary is large enough: library appears linked"
+
+      - name: Payload App
+        run: |
+          mkdir -p Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          zip -r Runner.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-ipa
+          path: Runner.ipa

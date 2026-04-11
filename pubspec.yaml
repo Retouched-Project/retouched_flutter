@@ -1,0 +1,58 @@
+name: retouched
+description: "A recreation of Nitrome Touchy with Flutter."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.3.2
+  flutter_svg: ^2.2.1
+  device_info_plus: ^12.1.0
+  ffi: ^2.1.0
+  xml: ^6.5.0
+  sensors_plus: ^7.0.0
+  vibration: ^3.0.0
+  protobuf: ^6.0.0
+  logging: ^1.3.0
+  bronze_monkey_ffi:
+    path: ./bronze_monkey_ffi
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/retouched_logo.svg
+    - assets/retouched_logo_outline.svg
+    - assets/retouched_logo_text.svg
+    - assets/slotwifi.svg
+    - assets/unlock_slider_bg.svg
+    - assets/unlock_slider.svg
+    - assets/retouched_logo_text_flutter.svg
+    - assets/menu_disconnect.svg
+    - assets/menu_help.svg
+    - assets/menu_music.svg
+    - assets/menu_music_off.svg
+    - assets/menu_quit.svg
+    - assets/menu_reset.svg
+    - assets/menu_sound_on.svg
+    - assets/menu_sound_off.svg
+    - assets/checkmark.svg
+    - assets/cross.svg
+    - assets/host.svg
+    - assets/server.svg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_icon.png"
