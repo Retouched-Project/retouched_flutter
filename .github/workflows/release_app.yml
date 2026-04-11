@@ -120,7 +120,7 @@ jobs:
             app-release.apk
             app-release.aab
             Runner.ipa
-          name: Release ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
