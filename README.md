@@ -8,6 +8,9 @@
 # Retouched Flutter
 A Brass Monkey compatible flutter controller app.
 
+## Known Bugs
+- In BC Bow Contest the X button to close the weapons menu is hard to trigger.
+
 ## License
 This project is licensed under the GPL-3.0 License.  
 See the [LICENSE](LICENSE) file for details.
