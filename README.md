@@ -8,6 +8,13 @@
 # Retouched Flutter
 A Brass Monkey compatible flutter controller app.
 
+## Installation
+Android users: Simply sideload the latest APK.    
+iOS users:     
+You have to sideload the app using [Sideloadly](https://sideloadly.io/) or with some other service.    
+There is nothing I can do unless I pay the ridiculous 100$ per year for an Apple Developer ID.    
+AltStore support is planned.    
+
 ## Known Bugs
 - In BC Bow Contest the X button to close the weapons menu is hard to trigger.
 
