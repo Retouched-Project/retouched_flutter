@@ -17,6 +17,7 @@ AltStore support is planned.
 
 ## Known Bugs
 - In BC Bow Contest the X button to close the weapons menu is hard to trigger.
+- When closing a game from the PC while the context menu is open while in the game session, the app won't go back to the games list and will get stuck.
 
 ## License
 This project is licensed under the GPL-3.0 License.  
