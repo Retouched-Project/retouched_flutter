@@ -138,19 +138,14 @@ class GameClient {
     _capabilities.setOverride(mask);
   }
 
-  Future<void> connect({
-    Duration timeout = const Duration(seconds: 5),
-  }) async {
+  Future<void> connect({Duration timeout = const Duration(seconds: 5)}) async {
     _lib.init();
     _registry.registerCompleter = Completer<void>();
     _registry.listCompleter = Completer<void>();
 
     try {
-      _socket = await Socket.connect(
-        server.ip,
-        serverPort,
-        timeout: timeout,
-      );
+      _socket = await Socket.connect(server.ip, serverPort, timeout: timeout);
+      _socket!.setOption(SocketOption.tcpNoDelay, true);
       _sub = _socket!.listen(
         _onData,
         onError: (e) {
@@ -370,6 +365,16 @@ class GameClient {
   }
 
   void _onGameDone() {
+    if (_isHandlingPolicy) {
+      _isHandlingPolicy = false;
+      final sub = _gameSub;
+      _gameSub = null;
+      _gameSocket = null;
+      _gameFramer.clear();
+      if (sub != null) unawaited(sub.cancel());
+      return;
+    }
+
     _gameHandshakeHandled = false;
     if (_activeGame != null) {
       MetricsService.send(
@@ -653,6 +658,7 @@ class GameClient {
       _gameFramer.clear();
       if (staleSub != null) unawaited(staleSub.cancel());
       if (staleSocket != null) unawaited(staleSocket.close());
+      socket.setOption(SocketOption.tcpNoDelay, true);
       _gameSocket = socket;
       _gameSub = socket.listen(
         _onGameData,
@@ -766,18 +772,25 @@ class GameClient {
     return _socket;
   }
 
+  bool _isHandlingPolicy = false;
+  final List<int> _policyBuffer = [];
+
   bool _handlePolicyRequest(List<int> data) {
-    final req = _policyRequestBytes;
-    if (data.length < req.length) return false;
-    for (var i = 0; i < req.length; i++) {
-      if (data[i] != req[i]) return false;
+    if (data.isEmpty) return false;
+    if (data[0] == 0x3C || _policyBuffer.isNotEmpty) {
+      _policyBuffer.addAll(data);
+      if (_policyBuffer.length >= _policyRequestBytes.length) {
+        final socket = _gameSocket;
+        if (socket != null) {
+          socket.add(_policyResponseBytes);
+        }
+        _isHandlingPolicy = true;
+        _policyBuffer.clear();
+        _gameFramer.clear();
+      }
+      return true;
     }
-    final socket = _gameSocket;
-    if (socket != null) {
-      socket.add(_policyResponseBytes);
-    }
-    _gameFramer.clear();
-    return true;
+    return false;
   }
 
   void _logHex(String tag, Uint8List data) {
