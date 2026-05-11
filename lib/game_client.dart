@@ -637,6 +637,8 @@ class GameClient {
     );
   }
 
+  ServerSocket? _policyServer;
+
   Future<void> _listenForGame() async {
     await _gameSub?.cancel();
     _gameSub = null;
@@ -646,6 +648,44 @@ class GameClient {
   }
 
   Future<void> _bindGameListeners() async {
+    try {
+      if (_policyServer == null) {
+        _policyServer = await ServerSocket.bind(
+          InternetAddress.anyIPv4,
+          9010,
+          shared: true,
+        );
+        _policyServer!.listen((socket) {
+          socket.setOption(SocketOption.tcpNoDelay, true);
+          List<int> buffer = [];
+          StreamSubscription? sub;
+          sub = socket.listen(
+            (data) {
+              buffer.addAll(data);
+              if (buffer.length >= 23) {
+                socket.add(_policyResponseBytes);
+                socket.flush().then((_) {
+                  sub?.cancel();
+                  socket.close().catchError((_) {});
+                });
+              }
+            },
+            onError: (e) {
+              sub?.cancel();
+              socket.destroy();
+            },
+            onDone: () {
+              sub?.cancel();
+              socket.destroy();
+            },
+          );
+        });
+        _log.info('Dedicated policy server listening on port 9010');
+      }
+    } catch (e) {
+      _log.warning('Could not bind dedicated policy port 9010: $e');
+    }
+
     _gameServer = await ServerSocket.bind(InternetAddress.anyIPv4, clientPort);
     _gameServer!.listen((socket) {
       if (_engine == null) {
@@ -656,6 +696,8 @@ class GameClient {
       final staleSocket = _gameSocket;
       _gameSub = null;
       _gameFramer.clear();
+      _policyBuffer.clear();
+      _isHandlingPolicy = false;
       if (staleSub != null) unawaited(staleSub.cancel());
       if (staleSocket != null) unawaited(staleSocket.close());
       socket.setOption(SocketOption.tcpNoDelay, true);
@@ -783,6 +825,10 @@ class GameClient {
         final socket = _gameSocket;
         if (socket != null) {
           socket.add(_policyResponseBytes);
+          socket
+              .flush()
+              .catchError((_) {})
+              .then((_) => socket.close().catchError((_) {}));
         }
         _isHandlingPolicy = true;
         _policyBuffer.clear();
