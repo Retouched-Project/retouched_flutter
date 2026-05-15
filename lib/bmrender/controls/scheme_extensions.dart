@@ -51,12 +51,12 @@ extension ControlSchemeExt on ControlScheme {
 }
 
 extension AppResourceExt on AppResource {
-  int getId() => hasId() ? id : 0;
+  int getId() => id;
   Uint8List? getBitmap() => hasBitmap() ? Uint8List.fromList(bitmap) : null;
 }
 
 extension DisplayObjectExt on DisplayObject {
-  int getId() => hasId() ? id : 0;
+  int getId() => id;
   String getType() => hasType() ? type : '';
 
   double getTop() => hasTop() ? top : 0.0;
@@ -105,8 +105,8 @@ extension DisplayObjectExt on DisplayObject {
 
   int getAssetRef(String name) {
     for (final asset in assets) {
-      if (asset.hasName() && asset.name == name) {
-        return asset.hasResourceRef() ? asset.resourceRef : -1;
+      if (asset.name == name) {
+        return asset.resourceRef;
       }
     }
     return -1;
