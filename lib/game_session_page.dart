@@ -49,6 +49,7 @@ class _GameSessionPageState extends State<GameSessionPage>
   bool _loading = true;
   StreamSubscription? _schemeSub;
   bool _popping = false;
+  bool _menuOpen = false;
   final GlobalKey<UnlockSliderState> _sliderKey = GlobalKey();
 
   @override
@@ -87,6 +88,9 @@ class _GameSessionPageState extends State<GameSessionPage>
   Future<void> _disconnectAndPop() async {
     if (_popping) return;
     _popping = true;
+    if (_menuOpen && mounted) {
+      Navigator.of(context).pop();
+    }
     widget.client.sendResume();
     await widget.client.disconnectGame();
     if (mounted) {
@@ -122,6 +126,7 @@ class _GameSessionPageState extends State<GameSessionPage>
   Future<void> _showPauseMenu() async {
     if (_currentScheme == null) return;
     widget.client.sendPause();
+    _menuOpen = true;
     try {
       await showDialog<void>(
         context: context,
@@ -207,7 +212,6 @@ class _GameSessionPageState extends State<GameSessionPage>
                           }
                           return InkWell(
                             onTap: () {
-                              Navigator.of(dialogCtx).pop();
                               _disconnectAndPop();
                             },
                             highlightColor: const Color(0x26FF6B6B),
@@ -251,6 +255,7 @@ class _GameSessionPageState extends State<GameSessionPage>
         },
       );
     } finally {
+      _menuOpen = false;
       widget.client.sendResume();
     }
   }
