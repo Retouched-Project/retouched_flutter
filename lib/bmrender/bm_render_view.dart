@@ -266,6 +266,7 @@ class _BMRenderViewState extends State<BMRenderView>
         _offsetY = (availH - scaledH) / 2;
 
         return Listener(
+          behavior: HitTestBehavior.opaque,
           onPointerDown: _handlePointerDown,
           onPointerMove: _handlePointerMove,
           onPointerUp: _handlePointerUp,

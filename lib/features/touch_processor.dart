@@ -33,6 +33,21 @@ class TouchProcessor {
     _pendingScreenW = screenWidth;
     _pendingScreenH = screenHeight;
     for (final t in touches) {
+      final existing = _pendingTouches[t.id];
+      if (existing != null && t.state == 2) {
+        if (existing.state != 3) {
+          _pendingTouches[t.id] = ControlTouchPoint(
+            id: t.id,
+            x: t.x,
+            y: t.y,
+            state: existing.state,
+          );
+          continue;
+        }
+        if (existing.x == t.x && existing.y == t.y) {
+          continue;
+        }
+      }
       _pendingTouches[t.id] = t;
     }
 
