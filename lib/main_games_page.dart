@@ -578,7 +578,7 @@ class _GamesPageState extends State<GamesPage>
             ),
             const SizedBox(height: 5),
             const Text(
-              'Version 1.0.2',
+              'Version 1.0.3',
               style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 16),
             ),
             const SizedBox(height: 40),
