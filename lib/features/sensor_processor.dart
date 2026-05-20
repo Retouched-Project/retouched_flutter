@@ -4,20 +4,27 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:math';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../bmlib/bm_lib.dart';
 
 class SensorProcessor {
   final BmLib _lib;
 
+  static const EventChannel _rotationVectorChannel =
+      EventChannel('com.ddavef.retouched/rotation_vector');
+
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<GyroscopeEvent>? _gyroSub;
   StreamSubscription<MagnetometerEvent>? _magSub;
+  StreamSubscription<dynamic>? _rotationVectorSub;
   Timer? _orientationTimer;
   MagnetometerEvent? _lastMag;
   AccelerometerEvent? _lastAccel;
+  List<double>? _orientationBaselineInv;
 
   int _orientationIntervalMs = 50;
+  int _lastOrientationSentAt = 0;
   bool _orientationEnabled = false;
   int _accelMsg = 0;
   int _accelIntervalMs = 100;
@@ -131,6 +138,57 @@ class SensorProcessor {
   }
 
   void startOrientation() {
+    if (_rotationVectorSub != null || _orientationTimer != null) return;
+    _orientationBaselineInv = null;
+    _rotationVectorSub = _rotationVectorChannel
+        .receiveBroadcastStream()
+        .listen(
+          _onRotationVectorEvent,
+          onError: (_) {
+            _rotationVectorSub?.cancel();
+            _rotationVectorSub = null;
+            if (_orientationEnabled) {
+              _startOrientationFallback();
+            }
+          },
+        );
+  }
+
+  void _onRotationVectorEvent(dynamic event) {
+    if (event is! List || event.length < 4) return;
+    final qx = (event[0] as num).toDouble();
+    final qy = (event[1] as num).toDouble();
+    final qz = (event[2] as num).toDouble();
+    final qw = (event[3] as num).toDouble();
+
+    _orientationBaselineInv ??= [-qx, -qy, -qz, qw];
+    final inv = _orientationBaselineInv!;
+    final ix = inv[0], iy = inv[1], iz = inv[2], iw = inv[3];
+    final dx = iw * qx + ix * qw + iy * qz - iz * qy;
+    final dy = iw * qy - ix * qz + iy * qw + iz * qx;
+    final dz = iw * qz + ix * qy - iy * qx + iz * qw;
+    final dw = iw * qw - ix * qx - iy * qy - iz * qz;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final aligned = gridAlign(now, _lastOrientationSentAt, _orientationIntervalMs);
+    if (aligned < 0) return;
+    _lastOrientationSentAt = aligned;
+
+    final gameDeviceId = getActiveGameDeviceId?.call();
+    if (gameDeviceId == null) return;
+    final actions = _lib.makeOrientation(
+      getEngine!(),
+      gameDeviceId,
+      dx,
+      dy,
+      dz,
+      dw,
+      controlReliability,
+    );
+    sendActions?.call(actions);
+  }
+
+  void _startOrientationFallback() {
     if (_orientationTimer != null) return;
     startAccel();
     startMag();
@@ -159,8 +217,12 @@ class SensorProcessor {
   }
 
   void stopOrientation() {
+    _rotationVectorSub?.cancel();
+    _rotationVectorSub = null;
     _orientationTimer?.cancel();
     _orientationTimer = null;
+    _orientationBaselineInv = null;
+    _lastOrientationSentAt = 0;
   }
 
   void setDisplayRotation(int rotation) {
@@ -188,7 +250,7 @@ class SensorProcessor {
 
   void setOrientationIntervalMs(int ms) {
     _orientationIntervalMs = ms.clamp(10, 1000);
-    if (_orientationTimer != null) {
+    if (_rotationVectorSub != null || _orientationTimer != null) {
       stopOrientation();
       if (_orientationEnabled) {
         startOrientation();
