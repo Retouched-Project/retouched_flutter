@@ -86,6 +86,7 @@ class ControlViewBuilder {
     List<ControlDrawable> currentControls,
     double baseW,
     double baseH,
+    bool widescreenStretched,
   ) {
     final List<ControlDrawable> newControls = [];
     final Map<int, ControlDrawable> inactive = {};
@@ -120,7 +121,7 @@ class ControlViewBuilder {
       if (obj.getType() == 'button') {
         newControl = _updateButton(obj, existing, baseW, baseH);
       } else if (obj.getType() == 'image') {
-        newControl = _updateImage(obj, existing, baseW, baseH);
+        newControl = _updateImage(obj, existing, baseW, baseH, widescreenStretched);
       } else if (obj.getType() == 'text') {
         newControl = _updateText(obj, existing, baseW, baseH);
       } else if (obj.getType() == 'dpad') {
@@ -129,7 +130,7 @@ class ControlViewBuilder {
           obj.getFunctionHandler()!.isNotEmpty) {
         newControl = _updateButton(obj, existing, baseW, baseH);
       } else {
-        newControl = _updateImage(obj, existing, baseW, baseH);
+        newControl = _updateImage(obj, existing, baseW, baseH, widescreenStretched);
       }
 
       newControls.add(newControl);
@@ -150,8 +151,9 @@ class ControlViewBuilder {
     ControlScheme scheme,
     double baseW,
     double baseH,
+    bool widescreenStretched,
   ) {
-    return update(scheme, [], baseW, baseH);
+    return update(scheme, [], baseW, baseH, widescreenStretched);
   }
 
   Rect _rectFromObj(DisplayObject obj, double baseW, double baseH) {
@@ -192,10 +194,11 @@ class ControlViewBuilder {
     ControlDrawable? existing,
     double baseW,
     double baseH,
+    bool widescreenStretched,
   ) {
     final isFullScreen = (obj.hasWidth() ? obj.width : 1.0) > 0.95;
 
-    if (isFullScreen) {
+    if (widescreenStretched && isFullScreen) {
       SlicedBitmapControlDrawable drawable;
       if (existing is SlicedBitmapControlDrawable) {
         drawable = existing;

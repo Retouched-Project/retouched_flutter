@@ -155,6 +155,7 @@ class _BMRenderViewState extends State<BMRenderView>
     }
 
     ControlScheme effectiveScheme = scheme;
+    bool widescreenStretched = false;
 
     if (widget.smartWidescreenEnabled &&
         scheme.getRotation() == ControlOrientation.landscape &&
@@ -210,10 +211,11 @@ class _BMRenderViewState extends State<BMRenderView>
 
         _baseW = targetW;
         effectiveScheme = newScheme;
+        widescreenStretched = true;
       }
     }
 
-    _controls = _builder.update(effectiveScheme, _controls, _baseW, _baseH);
+    _controls = _builder.update(effectiveScheme, _controls, _baseW, _baseH, widescreenStretched);
 
     var newHitTargets = <HitTarget>[];
     for (final c in _controls) {
