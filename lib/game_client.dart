@@ -574,10 +574,6 @@ class GameClient {
     }
   }
 
-  void setDisplayRotation(int rotation) {
-    _sensors.setDisplayRotation(rotation);
-  }
-
   void enableTouch(bool enabled) {
     if (debugWire) {
       _log.fine('enableTouch: $enabled');

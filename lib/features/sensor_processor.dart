@@ -26,7 +26,6 @@ class SensorProcessor {
   int _orientationIntervalMs = 50;
   int _lastOrientationSentAt = 0;
   bool _orientationEnabled = false;
-  int _accelMsg = 0;
   int _accelIntervalMs = 100;
   int _gyroIntervalMs = 100;
   int _lastAccelSentAt = 0;
@@ -51,20 +50,9 @@ class SensorProcessor {
           final aligned = gridAlign(now, _lastAccelSentAt, _accelIntervalMs);
           if (aligned < 0) return;
           _lastAccelSentAt = aligned;
-          final fx = event.x / -9.80665;
-          final fy = event.y / -9.80665;
-          final fz = event.z / -9.80665;
-          double x = fx, y = fy, z = fz;
-          if (_accelMsg == 1) {
-            x = -fy;
-            y = fx;
-          } else if (_accelMsg == 2) {
-            x = -fx;
-            y = -fy;
-          } else if (_accelMsg == 3) {
-            x = fy;
-            y = -fx;
-          }
+          final x = event.x / -9.80665;
+          final y = event.y / -9.80665;
+          final z = event.z / -9.80665;
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
           final actions = _lib.makeAccel(
@@ -109,23 +97,12 @@ class SensorProcessor {
           _lastGyroSentAt = aligned;
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
-          double x = event.x, y = event.y, z = event.z;
-          if (_accelMsg == 1) {
-            x = -event.y;
-            y = event.x;
-          } else if (_accelMsg == 2) {
-            x = -event.x;
-            y = -event.y;
-          } else if (_accelMsg == 3) {
-            x = event.y;
-            y = -event.x;
-          }
           final actions = _lib.makeGyro(
             getEngine!(),
             gameDeviceId,
-            x,
-            y,
-            z,
+            event.x,
+            event.y,
+            event.z,
             controlReliability,
           );
           sendActions?.call(actions);
@@ -223,10 +200,6 @@ class SensorProcessor {
     _orientationTimer = null;
     _orientationBaselineInv = null;
     _lastOrientationSentAt = 0;
-  }
-
-  void setDisplayRotation(int rotation) {
-    _accelMsg = rotation.clamp(0, 3);
   }
 
   void setAccelIntervalMs(int ms) {
