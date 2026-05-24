@@ -407,8 +407,7 @@ class GameClient {
             game != null &&
             game.unreliablePort != 0 &&
             action.targetDeviceId == game.deviceId &&
-            _udpSocket != null &&
-            _gameSocket != null) {
+            _udpSocket != null) {
           _sendUdp(action.payload.sublist(4));
         } else {
           final socket = _resolveSocket(action.targetDeviceId);
@@ -796,10 +795,11 @@ class GameClient {
   }
 
   void _sendUdp(Uint8List payload) {
-    final socket = _gameSocket;
     final game = _activeGame;
-    if (socket == null || game == null || _udpSocket == null) return;
-    _udpSocket!.send(payload, socket.remoteAddress, game.unreliablePort);
+    if (game == null || _udpSocket == null) return;
+    final target = InternetAddress.tryParse(game.address);
+    if (target == null) return;
+    _udpSocket!.send(payload, target, game.unreliablePort);
   }
 
   Socket? _resolveSocket(String targetDeviceId) {
