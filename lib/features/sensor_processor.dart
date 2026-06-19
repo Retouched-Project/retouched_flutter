@@ -11,8 +11,9 @@ import '../bmlib/bm_lib.dart';
 class SensorProcessor {
   final BmLib _lib;
 
-  static const EventChannel _rotationVectorChannel =
-      EventChannel('com.ddavef.retouched/rotation_vector');
+  static const EventChannel _rotationVectorChannel = EventChannel(
+    'com.ddavef.retouched/rotation_vector',
+  );
 
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<GyroscopeEvent>? _gyroSub;
@@ -31,11 +32,9 @@ class SensorProcessor {
   int _lastAccelSentAt = 0;
   int _lastGyroSentAt = 0;
 
-  int controlReliability = 0;
-
   ffi.Pointer<ffi.Void> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
-  void Function(List<BmAction>)? sendActions;
+  void Function(List<BmOutgoing>)? sendActions;
 
   SensorProcessor(this._lib);
 
@@ -55,14 +54,7 @@ class SensorProcessor {
           final z = event.z / -9.80665;
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
-          final actions = _lib.makeAccel(
-            getEngine!(),
-            gameDeviceId,
-            x,
-            y,
-            z,
-            controlReliability,
-          );
+          final actions = _lib.makeAccel(getEngine!(), gameDeviceId, x, y, z);
           sendActions?.call(actions);
         });
   }
@@ -103,7 +95,6 @@ class SensorProcessor {
             event.x,
             event.y,
             event.z,
-            controlReliability,
           );
           sendActions?.call(actions);
         });
@@ -117,18 +108,16 @@ class SensorProcessor {
   void startOrientation() {
     if (_rotationVectorSub != null || _orientationTimer != null) return;
     _orientationBaselineInv = null;
-    _rotationVectorSub = _rotationVectorChannel
-        .receiveBroadcastStream()
-        .listen(
-          _onRotationVectorEvent,
-          onError: (_) {
-            _rotationVectorSub?.cancel();
-            _rotationVectorSub = null;
-            if (_orientationEnabled) {
-              _startOrientationFallback();
-            }
-          },
-        );
+    _rotationVectorSub = _rotationVectorChannel.receiveBroadcastStream().listen(
+      _onRotationVectorEvent,
+      onError: (_) {
+        _rotationVectorSub?.cancel();
+        _rotationVectorSub = null;
+        if (_orientationEnabled) {
+          _startOrientationFallback();
+        }
+      },
+    );
   }
 
   void _onRotationVectorEvent(dynamic event) {
@@ -147,7 +136,11 @@ class SensorProcessor {
     final dw = iw * qw - ix * qx - iy * qy - iz * qz;
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    final aligned = gridAlign(now, _lastOrientationSentAt, _orientationIntervalMs);
+    final aligned = gridAlign(
+      now,
+      _lastOrientationSentAt,
+      _orientationIntervalMs,
+    );
     if (aligned < 0) return;
     _lastOrientationSentAt = aligned;
 
@@ -160,7 +153,6 @@ class SensorProcessor {
       dy,
       dz,
       dw,
-      controlReliability,
     );
     sendActions?.call(actions);
   }
@@ -186,7 +178,6 @@ class SensorProcessor {
           quat[1],
           quat[2],
           quat[3],
-          controlReliability,
         );
         sendActions?.call(actions);
       },

@@ -14,28 +14,27 @@ class RegistryClient {
   Completer<void>? listCompleter;
 
   ffi.Pointer<ffi.Void> Function()? getEngine;
-  void Function(List<BmAction>)? sendActions;
   void Function(List<String>)? onGamesChanged;
 
   RegistryClient(this._lib);
 
-  void handleRegistryEvent(BmRegistryEventAction action) {
-    if (action.kind == RegistryEventKindCodes.onRegister) {
-      _safeComplete(registerCompleter);
-      return;
-    }
-    if (action.kind == RegistryEventKindCodes.onList) {
-      _replaceGameInfos(action.infos);
-      _safeComplete(listCompleter);
-      return;
-    }
-    if (action.kind == RegistryEventKindCodes.onHostConnected ||
-        action.kind == RegistryEventKindCodes.onHostUpdate) {
-      _updateGameInfos(action.infos);
-    }
-    if (action.kind == RegistryEventKindCodes.onHostDisconnected) {
-      _removeGameInfos(action.infos);
-    }
+  void onRegistrationResult() {
+    _safeComplete(registerCompleter);
+  }
+
+  void onHostList(List<BmRegistryInfo> infos) {
+    _replaceGameInfos(infos);
+    _safeComplete(listCompleter);
+  }
+
+  void onHostUpsert(BmRegistryInfo? info) {
+    if (info == null) return;
+    _updateGameInfos([info]);
+  }
+
+  void onHostDisconnected(BmRegistryInfo? info) {
+    if (info == null) return;
+    _removeGameInfos([info]);
   }
 
   void _replaceGameInfos(List<BmRegistryInfo> infos) {

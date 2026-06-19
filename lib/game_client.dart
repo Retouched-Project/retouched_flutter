@@ -117,16 +117,15 @@ class GameClient {
     _sensors = SensorProcessor(_lib);
     _sensors.getEngine = () => _engine!;
     _sensors.getActiveGameDeviceId = () => _activeGame?.deviceId;
-    _sensors.sendActions = _sendActions;
+    _sensors.sendActions = _sendOutgoings;
 
     _touch = TouchProcessor(_lib);
     _touch.getEngine = () => _engine!;
     _touch.getActiveGameDeviceId = () => _activeGame?.deviceId;
-    _touch.sendActions = _sendActions;
+    _touch.sendActions = _sendOutgoings;
 
     _registry = RegistryClient(_lib);
     _registry.getEngine = () => _engine!;
-    _registry.sendActions = _sendActions;
     _registry.onGamesChanged = (games) {
       _gamesC.add(games);
     };
@@ -243,7 +242,7 @@ class GameClient {
 
   Future<void> requestList() async {
     final actions = _lib.makeRegistryList(_engine!, serverDeviceId);
-    _sendActions(actions);
+    _sendOutgoings(actions);
   }
 
   Future<List<String>> waitForList(Duration timeout) async {
@@ -320,14 +319,14 @@ class GameClient {
       info,
       'retouchedflutter',
     );
-    _sendActions(actions);
+    _sendOutgoings(actions);
   }
 
   void _onData(List<int> data) {
     final frames = _registryFramer.feed(data);
     for (final frame in frames) {
       if (debugWire) _logHex('RX frame', frame);
-      _handleActions(_lib.processIncoming(_engine!, frame));
+      _handleOutput(_lib.processIncoming(_engine!, frame));
     }
   }
 
@@ -335,7 +334,7 @@ class GameClient {
     if (event != RawSocketEvent.read) return;
     final dg = _udpSocket?.receive();
     if (dg == null) return;
-    _handleActions(_lib.processIncomingUdp(_engine!, dg.data));
+    _handleOutput(_lib.processIncomingUdp(_engine!, dg.data));
   }
 
   void _onGameData(List<int> data) {
@@ -343,7 +342,7 @@ class GameClient {
     final frames = _gameFramer.feed(data);
     for (final frame in frames) {
       if (debugWire) _logHex('RX frame', frame);
-      _handleActions(_lib.processIncoming(_engine!, frame));
+      _handleOutput(_lib.processIncoming(_engine!, frame));
     }
   }
 
@@ -398,45 +397,61 @@ class GameClient {
     if (sub != null) unawaited(sub.cancel());
   }
 
-  void _handleActions(List<BmAction> actions) {
-    for (final action in actions) {
-      if (action is BmSendAction) {
-        if (debugWire) _logHex('TX frame', action.payload);
-        final game = _activeGame;
-        if (action.reliability == 0 &&
-            game != null &&
-            game.unreliablePort != 0 &&
-            action.targetDeviceId == game.deviceId &&
-            _udpSocket != null) {
-          _sendUdp(action.payload.sublist(4));
-        } else {
-          final socket = _resolveSocket(action.targetDeviceId);
-          socket?.add(action.payload);
-        }
-      } else if (action is BmRegistryEventAction) {
-        _registry.handleRegistryEvent(action);
-      } else if (action is BmChunkProgressAction) {
-        _handleChunkProgress(action);
-      } else if (action is BmChunkCompleteAction) {
-        _handleChunkComplete(action);
-      } else if (action is BmControlConfigAction) {
-        _handleControlConfig(action);
-      } else if (action is BmInvokeAction) {
-        _handleInvoke(action);
-      } else if (action is BmHandshakeAction) {
-        _handleHandshake(action);
-      } else if (action is BmLogAction) {
-        if (debugWire) {
-          _log.fine(action.message);
-        }
-      }
+  void _handleOutput(BmProcessOutput output) {
+    _sendOutgoings(output.outgoings);
+    for (final event in output.events) {
+      _handleEvent(event);
     }
   }
 
-  void _handleHandshake(BmHandshakeAction action) {
+  void _handleEvent(BmEvent event) {
+    switch (event.type) {
+      case 'Handshake':
+        _handleHandshake(event);
+        break;
+      case 'RegistrationResult':
+        _registry.onRegistrationResult();
+        break;
+      case 'HostList':
+        _registry.onHostList(event.infos);
+        break;
+      case 'HostConnected':
+      case 'HostUpdated':
+        _registry.onHostUpsert(event.info);
+        break;
+      case 'HostDisconnected':
+        _registry.onHostDisconnected(event.info);
+        break;
+      case 'ControlConfig':
+        _handleControlConfig(event);
+        break;
+      case 'ChunkProgress':
+        _handleChunkProgress(event);
+        break;
+      case 'ChunkComplete':
+        _handleChunkComplete(event);
+        break;
+      case 'ControlScheme':
+        _handleControlScheme(event);
+        break;
+      case 'Vibrate':
+        _doVibrate();
+        break;
+      case 'Invoke':
+        _handleInvoke(event);
+        break;
+      default:
+        if (debugWire) {
+          _log.fine('Unhandled event: ${event.type}');
+        }
+        break;
+    }
+  }
+
+  void _handleHandshake(BmEvent event) {
     if (debugWire) {
       _log.fine(
-        'Handshake action received: current=${action.current}, minimum=${action.minimum}',
+        'Handshake event received: current=${event.current}, minimum=${event.minimum}',
       );
     }
     if (_activeGame != null && !_gameHandshakeHandled) {
@@ -445,7 +460,7 @@ class GameClient {
     }
   }
 
-  void _handleInvoke(BmInvokeAction invoke) {
+  void _handleInvoke(BmEvent invoke) {
     switch (invoke.method) {
       case 'vibrate':
         _doVibrate();
@@ -465,12 +480,9 @@ class GameClient {
     }
   }
 
-  void _handleControlConfig(BmControlConfigAction cfg) {
-    if (cfg.touchReliability != null || cfg.controlReliability != null) {
-      setReliabilityForTouch(
-        cfg.touchReliability ?? _touch.touchReliability,
-        cfg.controlReliability ?? _sensors.controlReliability,
-      );
+  void _handleControlConfig(BmEvent cfg) {
+    if (cfg.touchReliability != null) {
+      setReliabilityForTouch(cfg.touchReliability!);
     }
     if (cfg.touchEnabled != null) {
       enableTouch(cfg.touchEnabled!);
@@ -516,20 +528,20 @@ class GameClient {
     }
   }
 
-  void _handleChunkProgress(BmChunkProgressAction action) {
+  void _handleChunkProgress(BmEvent action) {
     if (action.total <= 0) return;
     final progress = action.current / action.total;
     _lastProgress = progress.clamp(0.0, 1.0);
     _progressC.add(_lastProgress!);
   }
 
-  void _handleChunkComplete(BmChunkCompleteAction action) {
+  void _handleChunkComplete(BmEvent action) {
     final updated = _schemeService.handleChunkComplete(
       action,
       engine: _engine!,
       activeGameDeviceId: _activeGame?.deviceId,
       deviceId: _deviceId,
-      sendActions: _sendActions,
+      sendActions: _sendOutgoings,
     );
     if (updated != null) {
       if (action.setId == 'testXML' && updated.isAccelerometerEnabled()) {
@@ -537,6 +549,19 @@ class GameClient {
       }
       _schemeC.add(updated);
     }
+  }
+
+  void _handleControlScheme(BmEvent event) {
+    final updated = _schemeService.handleControlScheme(event);
+    if (updated == null) return;
+    if (updated.isAccelerometerEnabled()) {
+      _sensors.startAccel();
+    }
+    final game = _activeGame;
+    if (game != null) {
+      _sendOutgoings(_lib.makeOnControlSchemeParsed(_engine!, game.deviceId));
+    }
+    _schemeC.add(updated);
   }
 
   void handleButton(String handler, bool pressed) {
@@ -548,14 +573,14 @@ class GameClient {
       handler,
       pressed,
     );
-    _sendActions(actions);
+    _sendOutgoings(actions);
   }
 
   void handleDpad(int x, int y) {
     final game = _activeGame;
     if (game == null) return;
     final actions = _lib.makeDpadUpdate(_engine!, game.deviceId, x, y);
-    _sendActions(actions);
+    _sendOutgoings(actions);
   }
 
   void handleTouchSet(
@@ -586,9 +611,8 @@ class GameClient {
     }
   }
 
-  void setReliabilityForTouch(int touchReliability, int controlReliability) {
+  void setReliabilityForTouch(int touchReliability) {
     _touch.touchReliability = touchReliability;
-    _sensors.controlReliability = controlReliability;
   }
 
   void enableAccelerometer(bool enabled) {
@@ -623,7 +647,7 @@ class GameClient {
       game,
       _selfInfo!,
     );
-    _sendActions(actions);
+    _sendOutgoings(actions);
     MetricsService.send(
       type: MetricsService.sessionStart,
       appId: game.appId,
@@ -715,15 +739,14 @@ class GameClient {
     final caps = await _capabilities.get();
     if (_activeGame == null) return;
     final capActions = _lib.makeSetCapabilities(_engine!, game.deviceId, caps);
-    _sendActions(capActions);
+    _sendOutgoings(capActions);
     final xmlActions = _lib.makeRequestXml(
       _engine!,
       game.deviceId,
       _screenWidth,
       _screenHeight,
-      _deviceId!,
     );
-    _sendActions(xmlActions);
+    _sendOutgoings(xmlActions);
   }
 
   Future<void> _sendHandshakeToGame(Socket socket) async {
@@ -744,27 +767,15 @@ class GameClient {
     final game = _activeGame;
     if (game == null || _isPaused == pause) return;
     _isPaused = pause;
-    final actions = _lib.makeSimpleInvoke(
-      _engine!,
-      game.deviceId,
-      'bmPause',
-      null,
-      null,
-    );
-    _sendActions(actions);
+    final actions = _lib.makePause(_engine!, game.deviceId);
+    _sendOutgoings(actions);
   }
 
   void sendMenuEvent(String event) {
     final game = _activeGame;
     if (game == null) return;
-    final actions = _lib.makeSimpleInvoke(
-      _engine!,
-      game.deviceId,
-      'menuEvent',
-      null,
-      event,
-    );
-    _sendActions(actions);
+    final actions = _lib.makeMenuEvent(_engine!, game.deviceId, event);
+    _sendOutgoings(actions);
   }
 
   Future<void> disconnectGame() async {
@@ -790,8 +801,21 @@ class GameClient {
     }
   }
 
-  void _sendActions(List<BmAction> actions) {
-    _handleActions(actions);
+  void _sendOutgoings(List<BmOutgoing> outgoings) {
+    for (final outgoing in outgoings) {
+      if (debugWire) _logHex('TX frame', outgoing.payload);
+      final game = _activeGame;
+      if (outgoing.reliability == 0 &&
+          game != null &&
+          game.unreliablePort != 0 &&
+          outgoing.targetDeviceId == game.deviceId &&
+          _udpSocket != null) {
+        _sendUdp(outgoing.payload.sublist(4));
+      } else {
+        final socket = _resolveSocket(outgoing.targetDeviceId);
+        socket?.add(outgoing.payload);
+      }
+    }
   }
 
   void _sendUdp(Uint8List payload) {

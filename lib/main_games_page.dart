@@ -511,8 +511,8 @@ class _GamesPageState extends State<GamesPage>
                   trailing: _slotIndicator(game),
                   onTap: () async {
                     if (_inSession) return;
-                    if (game.maxPlayers > 0 &&
-                        game.currentPlayers >= game.maxPlayers) {
+                    if ((game.maxPlayers ?? 0) > 0 &&
+                        (game.currentPlayers ?? 0) >= (game.maxPlayers ?? 0)) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Game is full')),
                       );
@@ -824,7 +824,7 @@ class _GamesPageState extends State<GamesPage>
             ),
             const SizedBox(width: 8),
             Text(
-              '${game.currentPlayers}/${game.maxPlayers}',
+              '${game.currentPlayers ?? 0}/${game.maxPlayers ?? 0}',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],

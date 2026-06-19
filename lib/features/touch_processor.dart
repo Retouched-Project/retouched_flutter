@@ -19,7 +19,7 @@ class TouchProcessor {
 
   ffi.Pointer<ffi.Void> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
-  void Function(List<BmAction>)? sendActions;
+  void Function(List<BmOutgoing>)? sendActions;
 
   TouchProcessor(this._lib);
 
@@ -102,12 +102,7 @@ class TouchProcessor {
       }
     }
 
-    final actions = _lib.makeTouchSet(
-      getEngine!(),
-      gameDeviceId,
-      points,
-      touchReliability,
-    );
+    final actions = _lib.makeTouchSet(getEngine!(), gameDeviceId, points);
     sendActions?.call(actions);
 
     if (retryCount < 3 &&

@@ -20,11 +20,11 @@ class SchemeService {
   SchemeService(this._lib, {required this.debugWire});
 
   ControlScheme? handleChunkComplete(
-    BmChunkCompleteAction action, {
+    BmEvent action, {
     required ffi.Pointer<ffi.Void> engine,
     required String? activeGameDeviceId,
     required String? deviceId,
-    required void Function(List<BmAction>) sendActions,
+    required void Function(List<BmOutgoing>) sendActions,
   }) {
     final bytes = action.blob;
     if (bytes.isEmpty) return null;
@@ -73,7 +73,6 @@ class SchemeService {
         final actions = _lib.makeOnControlSchemeParsed(
           engine,
           activeGameDeviceId,
-          deviceId,
         );
         sendActions(actions);
       }
@@ -90,6 +89,21 @@ class SchemeService {
       return scheme;
     }
     return null;
+  }
+
+  ControlScheme? handleControlScheme(BmEvent event) {
+    final bytes = event.scheme;
+    if (bytes.isEmpty) return null;
+    ControlScheme parsed;
+    try {
+      parsed = ControlScheme.fromBuffer(bytes);
+    } catch (e) {
+      _log.severe('ControlScheme decode error: $e');
+      return null;
+    }
+    _lastUpdateXml = null;
+    scheme = parsed;
+    return scheme;
   }
 
   void reset() {
