@@ -379,7 +379,6 @@ class GameClient {
       return;
     }
 
-    _gameHandshakeHandled = false;
     if (_activeGame != null) {
       MetricsService.send(
         type: MetricsService.sessionEnd,
@@ -389,14 +388,10 @@ class GameClient {
       );
     }
     _activeGame = null;
-    _assembler?.reset();
-    _currentScheme = null;
-    _touchEnabled = null;
+    _forgetGameSession();
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
-    _sensors.stopAll();
-    _touch.cancel();
     final sub = _gameSub;
     _gameSub = null;
     _gameSocket = null;
@@ -621,14 +616,20 @@ class GameClient {
     _sensors.setOrientationIntervalMs(ms);
   }
 
-  Future<void> connectToGame(BmRegistryInfo game) async {
-    _activeGame = game;
-    _isPaused = false;
-    _gameHandshakeHandled = false;
-    if (_selfInfo == null) return;
+  void _forgetGameSession() {
     _assembler?.reset();
     _currentScheme = null;
     _touchEnabled = null;
+    _gameHandshakeHandled = false;
+    _sensors.reset();
+    _touch.reset();
+  }
+
+  Future<void> connectToGame(BmRegistryInfo game) async {
+    _activeGame = game;
+    _isPaused = false;
+    if (_selfInfo == null) return;
+    _forgetGameSession();
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
@@ -771,7 +772,6 @@ class GameClient {
   }
 
   Future<void> disconnectGame() async {
-    _gameHandshakeHandled = false;
     if (_activeGame != null) {
       MetricsService.send(
         type: MetricsService.sessionEnd,
@@ -786,10 +786,7 @@ class GameClient {
     await _gameSocket?.close();
     _gameSocket = null;
     _gameFramer.clear();
-    _sensors.stopAll();
-    _assembler?.reset();
-    _currentScheme = null;
-    _touchEnabled = null;
+    _forgetGameSession();
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }

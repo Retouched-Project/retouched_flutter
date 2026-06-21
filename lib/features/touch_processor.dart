@@ -123,4 +123,14 @@ class TouchProcessor {
     _touchFlushTimer = null;
     _pendingTouches.clear();
   }
+
+  /// Cancels pending touches and restores defaults so the next game session
+  /// starts clean (a different game may request a different touch interval).
+  void reset() {
+    cancel();
+    touchIntervalMs = 100;
+    _lastTouchSentAt = 0;
+    _pendingScreenW = 0;
+    _pendingScreenH = 0;
+  }
 }

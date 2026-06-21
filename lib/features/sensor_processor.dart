@@ -245,6 +245,19 @@ class SensorProcessor {
     stopOrientation();
   }
 
+  /// Stops all streams and restores defaults so the next game session starts
+  /// clean (a different game may request different intervals or sensors).
+  void reset() {
+    stopAll();
+    _accelIntervalMs = 100;
+    _gyroIntervalMs = 100;
+    _orientationIntervalMs = 50;
+    _orientationEnabled = false;
+    _lastAccelSentAt = 0;
+    _lastGyroSentAt = 0;
+    _lastOrientationSentAt = 0;
+  }
+
   static int gridAlign(int now, int lastDispatch, int intervalMs) {
     final nextAt = lastDispatch + intervalMs;
     if (now >= nextAt) {
