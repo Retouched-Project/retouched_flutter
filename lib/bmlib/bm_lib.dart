@@ -207,8 +207,6 @@ class BmEvent {
   int? get accelIntervalMs => raw['accel_interval_ms'] as int?;
   int? get gyroIntervalMs => raw['gyro_interval_ms'] as int?;
   int? get orientationIntervalMs => raw['orientation_interval_ms'] as int?;
-  int? get touchReliability => raw['touch_reliability'] as int?;
-  int? get controlReliability => raw['control_reliability'] as int?;
   int? get controlMode => raw['control_mode'] as int?;
   String? get portalId => raw['portal_id'] as String?;
   String? get returnAppId => raw['return_app_id'] as String?;
@@ -329,22 +327,6 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_handshake');
 
-  late final _parseXml = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_controls_parse_xml');
-
   late final _safeImage = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -361,6 +343,62 @@ class BmLib {
         )
       >('bm_safe_image_memory');
 
+  late final _assemblerNew = _lib
+      .lookupFunction<
+        ffi.Pointer<ffi.Void> Function(),
+        ffi.Pointer<ffi.Void> Function()
+      >('bm_scheme_assembler_new');
+
+  late final _assemblerFree = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_scheme_assembler_free');
+
+  late final _assemblerOffer = _lib
+      .lookupFunction<
+        ffi.Int32 Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+          ffi.Pointer<ffi.Bool>,
+        ),
+        int Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+          ffi.Pointer<ffi.Bool>,
+        )
+      >('bm_scheme_assembler_offer');
+
+  late final _assemblerCurrent = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_scheme_assembler_current');
+
+  late final _assemblerReset = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_scheme_assembler_reset');
+
   void init() {
     if (_initialized) return;
     _bmLibraryInit();
@@ -370,6 +408,9 @@ class BmLib {
   ffi.Pointer<ffi.Void> createEngine() => _engineNew();
 
   void freeEngine(ffi.Pointer<ffi.Void> engine) => _engineFree(engine);
+
+  BmSchemeAssembler createSchemeAssembler() =>
+      BmSchemeAssembler._(this, _assemblerNew());
 
   Uint8List _readOut(
     bool ok,
@@ -693,14 +734,6 @@ class BmLib {
     'event': event,
   });
 
-  Uint8List parseControlSchemeXml(String xmlContent) {
-    if (xmlContent.isEmpty) return Uint8List(0);
-    return _callOut(
-      Uint8List.fromList(utf8.encode(xmlContent)),
-      (ptr, len, op, ol) => _parseXml(ptr, len, op, ol),
-    );
-  }
-
   Uint8List safeImageMemory(Uint8List data) {
     if (data.isEmpty) return Uint8List(0);
     return _callOut(data, (ptr, len, op, ol) => _safeImage(ptr, len, op, ol));
@@ -717,5 +750,92 @@ class BmLib {
       return ffi.DynamicLibrary.process();
     }
     return ffi.DynamicLibrary.open('libbronze_monkey.so');
+  }
+}
+
+class BmSchemeOffer {
+  /// 2 = updated, 1 = consumed, 0 = not a scheme set, -1 = error.
+  final int kind;
+  final Uint8List? scheme;
+  final bool initial;
+
+  const BmSchemeOffer(this.kind, this.scheme, this.initial);
+
+  bool get isUpdated => kind == 2;
+  bool get isNotScheme => kind == 0;
+}
+
+class BmSchemeAssembler {
+  final BmLib _lib;
+  ffi.Pointer<ffi.Void> _ptr;
+
+  BmSchemeAssembler._(this._lib, this._ptr);
+
+  BmSchemeOffer offer(String setId, Uint8List blob) {
+    final setIdBytes = utf8.encode(setId);
+    final setIdPtr = calloc<ffi.Uint8>(
+      setIdBytes.isEmpty ? 1 : setIdBytes.length,
+    );
+    if (setIdBytes.isNotEmpty) {
+      setIdPtr.asTypedList(setIdBytes.length).setAll(0, setIdBytes);
+    }
+    final blobPtr = calloc<ffi.Uint8>(blob.isEmpty ? 1 : blob.length);
+    if (blob.isNotEmpty) {
+      blobPtr.asTypedList(blob.length).setAll(0, blob);
+    }
+    final outScheme = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final outInitial = calloc<ffi.Bool>();
+
+    final kind = _lib._assemblerOffer(
+      _ptr,
+      setIdPtr,
+      setIdBytes.length,
+      blobPtr,
+      blob.length,
+      outScheme,
+      outLen,
+      outInitial,
+    );
+
+    Uint8List? scheme;
+    var initial = false;
+    if (kind == 2) {
+      initial = outInitial.value;
+      if (outScheme.value != ffi.nullptr && outLen.value > 0) {
+        scheme = Uint8List.fromList(outScheme.value.asTypedList(outLen.value));
+        _lib._bufferFree(outScheme.value, outLen.value);
+      }
+    }
+
+    calloc.free(setIdPtr);
+    calloc.free(blobPtr);
+    calloc.free(outScheme);
+    calloc.free(outLen);
+    calloc.free(outInitial);
+    return BmSchemeOffer(kind, scheme, initial);
+  }
+
+  Uint8List? current() {
+    final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final ok = _lib._assemblerCurrent(_ptr, outPtr, outLen);
+    Uint8List? result;
+    if (ok && outPtr.value != ffi.nullptr && outLen.value > 0) {
+      result = Uint8List.fromList(outPtr.value.asTypedList(outLen.value));
+      _lib._bufferFree(outPtr.value, outLen.value);
+    }
+    calloc.free(outPtr);
+    calloc.free(outLen);
+    return result;
+  }
+
+  void reset() => _lib._assemblerReset(_ptr);
+
+  void dispose() {
+    if (_ptr != ffi.nullptr) {
+      _lib._assemblerFree(_ptr);
+      _ptr = ffi.nullptr;
+    }
   }
 }

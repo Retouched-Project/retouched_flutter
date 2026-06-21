@@ -15,7 +15,6 @@ class TouchProcessor {
   int _pendingScreenH = 0;
   int _lastTouchSentAt = 0;
   int touchIntervalMs = 100;
-  int touchReliability = 0;
 
   ffi.Pointer<ffi.Void> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
@@ -105,8 +104,11 @@ class TouchProcessor {
     final actions = _lib.makeTouchSet(getEngine!(), gameDeviceId, points);
     sendActions?.call(actions);
 
+    // Only unreliable (UDP) touches need resending to survive packet loss; the
+    // engine resolves the reliability, so derive the retry need from it.
+    final unreliable = actions.any((a) => a.reliability == 0);
     if (retryCount < 3 &&
-        touchReliability == 0 &&
+        unreliable &&
         _touchFlushTimer == null &&
         _pendingTouches.isNotEmpty) {
       _touchFlushTimer = Timer(

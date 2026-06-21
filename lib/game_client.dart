@@ -14,7 +14,6 @@ import 'bmrender/controls/scheme.pb.dart';
 import 'bmrender/controls/scheme_extensions.dart';
 import 'bmrender/controls/touch_enums.dart' show ControlTouchPoint;
 import 'core/message_framer.dart';
-import 'core/scheme_service.dart';
 import 'features/sensor_processor.dart';
 import 'features/touch_processor.dart';
 import 'features/registry_client.dart';
@@ -76,8 +75,8 @@ class GameClient {
   late final StreamController<ControlScheme?> _schemeC =
       StreamController<ControlScheme?>.broadcast(
         onListen: () {
-          if (_schemeService.scheme != null) {
-            scheduleMicrotask(() => _schemeC.add(_schemeService.scheme));
+          if (_currentScheme != null) {
+            scheduleMicrotask(() => _schemeC.add(_currentScheme));
           }
         },
       );
@@ -98,7 +97,12 @@ class GameClient {
   int _screenWidth = 480;
   int _screenHeight = 320;
 
-  late final SchemeService _schemeService;
+  BmSchemeAssembler? _assembler;
+  ControlScheme? _currentScheme;
+  // Runtime touch-enable state from the enableTouch RPC. It is session state,
+  // not scheme content, so it is re-applied to every scheme the assembler emits
+  // (which carries the initial scheme's touchEnabled).
+  bool? _touchEnabled;
   late final SensorProcessor _sensors;
   late final TouchProcessor _touch;
   late final RegistryClient _registry;
@@ -112,8 +116,6 @@ class GameClient {
   List<BmRegistryInfo> get gameInfos => _registry.gameInfos;
 
   GameClient(this.server) {
-    _schemeService = SchemeService(_lib, debugWire: () => debugWire);
-
     _sensors = SensorProcessor(_lib);
     _sensors.getEngine = () => _engine!;
     _sensors.getActiveGameDeviceId = () => _activeGame?.deviceId;
@@ -155,6 +157,7 @@ class GameClient {
       );
 
       _engine = _lib.createEngine();
+      _assembler = _lib.createSchemeAssembler();
       await _initIdentity();
 
       final localHost = await _determineLocalHost();
@@ -277,6 +280,8 @@ class GameClient {
       _lib.freeEngine(_engine!);
       _engine = null;
     }
+    _assembler?.dispose();
+    _assembler = null;
     if (!_gamesC.isClosed) {
       await _gamesC.close();
     }
@@ -384,7 +389,9 @@ class GameClient {
       );
     }
     _activeGame = null;
-    _schemeService.reset();
+    _assembler?.reset();
+    _currentScheme = null;
+    _touchEnabled = null;
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
@@ -430,9 +437,6 @@ class GameClient {
         break;
       case 'ChunkComplete':
         _handleChunkComplete(event);
-        break;
-      case 'ControlScheme':
-        _handleControlScheme(event);
         break;
       case 'Vibrate':
         _doVibrate();
@@ -481,9 +485,6 @@ class GameClient {
   }
 
   void _handleControlConfig(BmEvent cfg) {
-    if (cfg.touchReliability != null) {
-      setReliabilityForTouch(cfg.touchReliability!);
-    }
     if (cfg.touchEnabled != null) {
       enableTouch(cfg.touchEnabled!);
     }
@@ -536,32 +537,27 @@ class GameClient {
   }
 
   void _handleChunkComplete(BmEvent action) {
-    final updated = _schemeService.handleChunkComplete(
-      action,
-      engine: _engine!,
-      activeGameDeviceId: _activeGame?.deviceId,
-      deviceId: _deviceId,
-      sendActions: _sendOutgoings,
-    );
-    if (updated != null) {
-      if (action.setId == 'testXML' && updated.isAccelerometerEnabled()) {
+    final assembler = _assembler;
+    if (assembler == null) return;
+    final result = assembler.offer(action.setId, action.blob);
+    if (!result.isUpdated || result.scheme == null) return;
+    final scheme = ControlScheme.fromBuffer(result.scheme!);
+    // Re-apply the runtime touch-enable state; the assembler carries the
+    // initial scheme's touchEnabled, which would otherwise revert it.
+    if (_touchEnabled != null) {
+      scheme.touchEnabled = _touchEnabled!;
+    }
+    _currentScheme = scheme;
+    if (result.initial) {
+      final game = _activeGame;
+      if (game != null) {
+        _sendOutgoings(_lib.makeOnControlSchemeParsed(_engine!, game.deviceId));
+      }
+      if (scheme.isAccelerometerEnabled()) {
         _sensors.startAccel();
       }
-      _schemeC.add(updated);
     }
-  }
-
-  void _handleControlScheme(BmEvent event) {
-    final updated = _schemeService.handleControlScheme(event);
-    if (updated == null) return;
-    if (updated.isAccelerometerEnabled()) {
-      _sensors.startAccel();
-    }
-    final game = _activeGame;
-    if (game != null) {
-      _sendOutgoings(_lib.makeOnControlSchemeParsed(_engine!, game.deviceId));
-    }
-    _schemeC.add(updated);
+    _schemeC.add(scheme);
   }
 
   void handleButton(String handler, bool pressed) {
@@ -602,17 +598,11 @@ class GameClient {
     if (debugWire) {
       _log.fine('enableTouch: $enabled');
     }
-    if (!enabled) {
-      _touch.touchReliability = 1;
+    _touchEnabled = enabled;
+    if (_currentScheme != null) {
+      _currentScheme!.touchEnabled = enabled;
+      _schemeC.add(_currentScheme);
     }
-    if (_schemeService.scheme != null) {
-      _schemeService.scheme!.touchEnabled = enabled;
-      _schemeC.add(_schemeService.scheme);
-    }
-  }
-
-  void setReliabilityForTouch(int touchReliability) {
-    _touch.touchReliability = touchReliability;
   }
 
   void enableAccelerometer(bool enabled) {
@@ -636,7 +626,9 @@ class GameClient {
     _isPaused = false;
     _gameHandshakeHandled = false;
     if (_selfInfo == null) return;
-    _schemeService.reset();
+    _assembler?.reset();
+    _currentScheme = null;
+    _touchEnabled = null;
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
@@ -795,7 +787,9 @@ class GameClient {
     _gameSocket = null;
     _gameFramer.clear();
     _sensors.stopAll();
-    _schemeService.reset();
+    _assembler?.reset();
+    _currentScheme = null;
+    _touchEnabled = null;
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
