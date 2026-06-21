@@ -207,7 +207,7 @@ class BmEvent {
   int? get accelIntervalMs => raw['accel_interval_ms'] as int?;
   int? get gyroIntervalMs => raw['gyro_interval_ms'] as int?;
   int? get orientationIntervalMs => raw['orientation_interval_ms'] as int?;
-  int? get controlMode => raw['control_mode'] as int?;
+  String? get controlMode => raw['control_mode'] as String?;
   String? get portalId => raw['portal_id'] as String?;
   String? get returnAppId => raw['return_app_id'] as String?;
 }
