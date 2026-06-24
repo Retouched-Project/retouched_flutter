@@ -215,7 +215,13 @@ class _BMRenderViewState extends State<BMRenderView>
       }
     }
 
-    _controls = _builder.update(effectiveScheme, _controls, _baseW, _baseH, widescreenStretched);
+    _controls = _builder.update(
+      effectiveScheme,
+      _controls,
+      _baseW,
+      _baseH,
+      widescreenStretched,
+    );
 
     var newHitTargets = <HitTarget>[];
     for (final c in _controls) {
@@ -364,6 +370,7 @@ class _BMRenderViewState extends State<BMRenderView>
     bool needsRepaint = false;
 
     for (final target in _hitTargets) {
+      if (target.isDisabled()) continue; // hidden controls are not pressable
       Offset? hitPoint;
       for (final pos in _pointerPositions.values) {
         if (target.hitTest(pos)) {
