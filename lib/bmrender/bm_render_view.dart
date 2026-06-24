@@ -26,6 +26,9 @@ class BMRenderView extends StatefulWidget {
   final bool floatingDpadEnabled;
   final bool smartWidescreenEnabled;
   final bool preserveDpadDragEnabled;
+  // Forces the rotated (portrait) presentation for whitelisted games that
+  // declared landscape but authored a portrait scheme.
+  final bool forceRotate;
 
   const BMRenderView({
     super.key,
@@ -36,6 +39,7 @@ class BMRenderView extends StatefulWidget {
     this.floatingDpadEnabled = true,
     this.smartWidescreenEnabled = false,
     this.preserveDpadDragEnabled = false,
+    this.forceRotate = false,
   });
 
   @override
@@ -147,17 +151,22 @@ class _BMRenderViewState extends State<BMRenderView>
 
     _rotated = false;
     if (scheme.getRotation() == ControlOrientation.landscape &&
-        _baseW < _baseH) {
+        (_baseW < _baseH || widget.forceRotate)) {
       _rotated = true;
-      final temp = _baseW;
-      _baseW = _baseH;
-      _baseH = temp;
+      // Only swap when the declared dimensions are portrait-shaped.
+      // A whitelisted (forceRotate) scheme already carries landscape dimensions.
+      if (_baseW < _baseH) {
+        final temp = _baseW;
+        _baseW = _baseH;
+        _baseH = temp;
+      }
     }
 
     ControlScheme effectiveScheme = scheme;
     bool widescreenStretched = false;
 
     if (widget.smartWidescreenEnabled &&
+        !_rotated &&
         scheme.getRotation() == ControlOrientation.landscape &&
         _baseW <= 480 &&
         scheme.getDisplayObjects().any((o) => o.getType() == 'dpad')) {
@@ -267,11 +276,17 @@ class _BMRenderViewState extends State<BMRenderView>
 
         if (availW <= 0 || availH <= 0) return const SizedBox.shrink();
 
-        _scale = min(availW / _baseW, availH / _baseH);
-        final scaledW = _baseW * _scale;
-        final scaledH = _baseH * _scale;
-        _offsetX = (availW - scaledW) / 2;
-        _offsetY = (availH - scaledH) / 2;
+        // When rotated, the content's width/height swap on screen, so fit and
+        // center against the swapped dimensions.
+        if (_rotated) {
+          _scale = min(availW / _baseH, availH / _baseW);
+          _offsetX = (availW - _baseH * _scale) / 2;
+          _offsetY = (availH - _baseW * _scale) / 2;
+        } else {
+          _scale = min(availW / _baseW, availH / _baseH);
+          _offsetX = (availW - _baseW * _scale) / 2;
+          _offsetY = (availH - _baseH * _scale) / 2;
+        }
 
         return Listener(
           behavior: HitTestBehavior.opaque,
@@ -297,15 +312,14 @@ class _BMRenderViewState extends State<BMRenderView>
   }
 
   Offset _toSchemeCoords(Offset pos) {
-    double x = (pos.dx - _offsetX) / _scale;
-    double y = (pos.dy - _offsetY) / _scale;
-
+    // Inverse of _BMPainter's transform.
     if (_rotated) {
-      final tmp = x;
-      x = y;
-      y = _baseW - tmp;
+      final cx = (pos.dy - _offsetY) / _scale;
+      final cy = _baseH - (pos.dx - _offsetX) / _scale;
+      return Offset(cx, cy);
     }
-
+    final x = (pos.dx - _offsetX) / _scale;
+    final y = (pos.dy - _offsetY) / _scale;
     return Offset(x, y);
   }
 
@@ -410,13 +424,15 @@ class _BMPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
-    canvas.translate(offsetX, offsetY);
-    canvas.scale(scale, scale);
-
     if (rotated) {
-      canvas.translate(baseW / 2, baseH / 2);
+      // Maps content point (cx, cy) -> (offsetX + (baseH - cy)*scale,
+      // offsetY + cx*scale): a 90deg turn fitted to the swapped footprint.
+      canvas.translate(offsetX + baseH * scale, offsetY);
       canvas.rotate(pi / 2);
-      canvas.translate(-baseH / 2, -baseW / 2);
+      canvas.scale(scale, scale);
+    } else {
+      canvas.translate(offsetX, offsetY);
+      canvas.scale(scale, scale);
     }
 
     for (final c in controls) {

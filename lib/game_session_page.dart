@@ -10,6 +10,7 @@ import 'bmrender/controls/scheme.pb.dart';
 import 'bmrender/controls/scheme_extensions.dart';
 import 'bmrender/controls/control_orientation.dart';
 import 'bmrender/bm_render_view.dart';
+import 'bmrender/app_id_rotate_whitelist.dart';
 import 'loading_logo.dart';
 import 'bmrender/unlock_slider.dart';
 
@@ -60,7 +61,7 @@ class _GameSessionPageState extends State<GameSessionPage>
     _currentScheme = widget.initialScheme;
     if (_currentScheme != null) {
       _loading = false;
-      _applyOrientation(_currentScheme!.getRotation());
+      _applyOrientation(_effectiveOrientation(_currentScheme));
     }
     _schemeSub = widget.client.schemeStream.listen(_onScheme);
   }
@@ -78,7 +79,7 @@ class _GameSessionPageState extends State<GameSessionPage>
       setState(() {
         _currentScheme = scheme;
         _loading = false;
-        _applyOrientation(scheme.getRotation());
+        _applyOrientation(_effectiveOrientation(scheme));
       });
     } else {
       _disconnectAndPop();
@@ -96,6 +97,19 @@ class _GameSessionPageState extends State<GameSessionPage>
     if (mounted) {
       Navigator.of(context).pop();
     }
+  }
+
+  bool get _whitelisted {
+    final id = widget.client.activeGameAppId;
+    return id != null && appIdRotateWhitelist.contains(id);
+  }
+
+  ControlOrientation? _effectiveOrientation(ControlScheme? scheme) {
+    final o = scheme?.getRotation();
+    if (o == ControlOrientation.landscape && _whitelisted) {
+      return ControlOrientation.portrait;
+    }
+    return o;
   }
 
   void _applyOrientation(ControlOrientation? orientation) {
@@ -319,15 +333,19 @@ class _GameSessionPageState extends State<GameSessionPage>
                 floatingDpadEnabled: widget.floatingDpadEnabled,
                 smartWidescreenEnabled: widget.smartWidescreenEnabled,
                 preserveDpadDragEnabled: widget.preserveDpadDragEnabled,
+                forceRotate: _whitelisted,
               ),
             ),
             Positioned(
-              top: _currentScheme?.getRotation() == ControlOrientation.landscape
+              top:
+                  _effectiveOrientation(_currentScheme) ==
+                      ControlOrientation.landscape
                   ? 12
                   : 56,
               right:
                   24 +
-                  (_currentScheme?.getRotation() == ControlOrientation.landscape
+                  (_effectiveOrientation(_currentScheme) ==
+                          ControlOrientation.landscape
                       ? 48.0
                       : 0.0),
               child: UnlockSlider(key: _sliderKey, onUnlocked: _showPauseMenu),

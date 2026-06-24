@@ -114,6 +114,7 @@ class GameClient {
   Stream<ControlScheme?> get schemeStream => _schemeC.stream;
   Stream<void> get disconnectedStream => _disconnectedC.stream;
   List<BmRegistryInfo> get gameInfos => _registry.gameInfos;
+  String? get activeGameAppId => _activeGame?.appId;
 
   GameClient(this.server) {
     _sensors = SensorProcessor(_lib);
