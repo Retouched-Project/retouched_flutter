@@ -2,7 +2,7 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'package:flutter/material.dart';
-import 'main_games_page.dart';
+import 'pages/home_page.dart';
 import 'utils/app_logger.dart';
 
 void main() {
@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const GamesPage(),
+      home: const HomePage(),
     );
   }
 }
