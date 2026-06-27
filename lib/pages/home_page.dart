@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../server_mgr.dart';
+import '../utils/server_mgr.dart';
 import '../game_client/game_client.dart';
 import '../bmlib/bm_lib.dart';
 import 'game_session_page.dart';

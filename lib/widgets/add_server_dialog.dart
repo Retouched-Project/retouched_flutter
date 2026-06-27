@@ -2,7 +2,7 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'package:flutter/material.dart';
-import '../server_mgr.dart';
+import '../utils/server_mgr.dart';
 
 class AddServerDialog extends StatefulWidget {
   const AddServerDialog({super.key, this.initial});

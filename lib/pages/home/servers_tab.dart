@@ -2,7 +2,7 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'package:flutter/material.dart';
-import '../../server_mgr.dart';
+import '../../utils/server_mgr.dart';
 import '../../game_client/game_client.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/add_server_dialog.dart';

@@ -47,7 +47,12 @@ class _FillClipper extends CustomClipper<Rect> {
 
   @override
   Rect getClip(Size size) {
-    return Rect.fromLTWH(0, size.height * (1 - progress), size.width, size.height * progress);
+    return Rect.fromLTWH(
+      0,
+      size.height * (1 - progress),
+      size.width,
+      size.height * progress,
+    );
   }
 
   @override
@@ -64,5 +69,6 @@ class _OutlineClipper extends CustomClipper<Rect> {
   }
 
   @override
-  bool shouldReclip(_OutlineClipper oldClipper) => oldClipper.progress != progress;
+  bool shouldReclip(_OutlineClipper oldClipper) =>
+      oldClipper.progress != progress;
 }

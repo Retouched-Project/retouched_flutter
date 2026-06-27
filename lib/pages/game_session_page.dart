@@ -11,7 +11,7 @@ import '../bmrender/controls/scheme_extensions.dart';
 import '../bmrender/controls/control_orientation.dart';
 import '../bmrender/bm_render_view.dart';
 import '../bmrender/app_id_rotate_whitelist.dart';
-import '../loading_logo.dart';
+import '../widgets/loading_logo.dart';
 import '../bmrender/unlock_slider.dart';
 
 const _menuIcons = <int, String>{

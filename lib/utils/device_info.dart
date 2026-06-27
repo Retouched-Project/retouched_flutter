@@ -6,7 +6,8 @@ import 'dart:io' show Platform;
 import 'package:device_info_plus/device_info_plus.dart';
 
 final class DeviceInfo {
-  static final String _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+  static final String _chars =
+      'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
 
   static String generateDeviceId() {
     final rnd = Random();
