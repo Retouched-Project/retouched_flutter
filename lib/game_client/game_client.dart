@@ -56,6 +56,12 @@ void _safeCompleteError(Completer<void>? completer, Object error) {
   }
 }
 
+class GameControlConfig {
+  final String mode;
+  final String startString;
+  const GameControlConfig(this.mode, this.startString);
+}
+
 class GameClient {
   bool debugWire = true;
   final ServerEntry server;
@@ -99,6 +105,16 @@ class GameClient {
         },
       );
 
+  late final StreamController<GameControlConfig> _controlConfigC =
+      StreamController<GameControlConfig>.broadcast(
+        onListen: () {
+          final last = _lastControlConfig;
+          if (last != null) {
+            scheduleMicrotask(() => _controlConfigC.add(last));
+          }
+        },
+      );
+
   final StreamController<void> _disconnectedC =
       StreamController<void>.broadcast();
 
@@ -121,6 +137,7 @@ class GameClient {
   // not scheme content, so it is re-applied to every scheme the assembler emits
   // (which carries the initial scheme's touchEnabled).
   bool? _touchEnabled;
+  GameControlConfig? _lastControlConfig;
   late final SensorProcessor _sensors;
   late final TouchProcessor _touch;
   late final RegistryClient _registry;
@@ -133,6 +150,7 @@ class GameClient {
   List<String> get games => _registry.games;
   Stream<double> get progressStream => _progressC.stream;
   Stream<ControlScheme?> get schemeStream => _schemeC.stream;
+  Stream<GameControlConfig> get controlConfigStream => _controlConfigC.stream;
   Stream<void> get disconnectedStream => _disconnectedC.stream;
   List<BmRegistryInfo> get gameInfos => _registry.gameInfos;
   String? get activeGameAppId => _activeGame?.appId;

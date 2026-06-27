@@ -8,6 +8,7 @@ extension GameClientSession on GameClient {
     _assembler?.reset();
     _currentScheme = null;
     _touchEnabled = null;
+    _lastControlConfig = null;
     _gameHandshakeHandled = false;
     _sensors.reset();
     _touch.reset();

@@ -12,6 +12,7 @@ import '../bmrender/controls/control_orientation.dart';
 import '../bmrender/bm_render_view.dart';
 import '../bmrender/app_id_rotate_whitelist.dart';
 import '../widgets/loading_logo.dart';
+import '../widgets/keyboard_overlay.dart';
 import '../bmrender/unlock_slider.dart';
 
 const _menuIcons = <int, String>{
@@ -49,6 +50,8 @@ class _GameSessionPageState extends State<GameSessionPage>
   ControlScheme? _currentScheme;
   bool _loading = true;
   StreamSubscription? _schemeSub;
+  StreamSubscription? _controlSub;
+  GameControlConfig? _controlConfig;
   bool _popping = false;
   bool _menuOpen = false;
   final GlobalKey<UnlockSliderState> _sliderKey = GlobalKey();
@@ -64,6 +67,7 @@ class _GameSessionPageState extends State<GameSessionPage>
       _applyOrientation(_effectiveOrientation(_currentScheme));
     }
     _schemeSub = widget.client.schemeStream.listen(_onScheme);
+    _controlSub = widget.client.controlConfigStream.listen(_onControlConfig);
   }
 
   @override
@@ -84,6 +88,11 @@ class _GameSessionPageState extends State<GameSessionPage>
     } else {
       _disconnectAndPop();
     }
+  }
+
+  void _onControlConfig(GameControlConfig cfg) {
+    if (!mounted || _popping) return;
+    setState(() => _controlConfig = cfg);
   }
 
   Future<void> _disconnectAndPop() async {
@@ -132,6 +141,7 @@ class _GameSessionPageState extends State<GameSessionPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _schemeSub?.cancel();
+    _controlSub?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
@@ -350,6 +360,14 @@ class _GameSessionPageState extends State<GameSessionPage>
                       : 0.0),
               child: UnlockSlider(key: _sliderKey, onUnlocked: _showPauseMenu),
             ),
+            if (_controlConfig?.mode == 'Keyboard')
+              Positioned.fill(
+                child: KeyboardOverlay(
+                  key: ValueKey(_controlConfig!.startString),
+                  initialText: _controlConfig!.startString,
+                  onKey: widget.client.sendKeyString,
+                ),
+              ),
           ],
         ),
       ),

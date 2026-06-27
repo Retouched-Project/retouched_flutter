@@ -160,6 +160,9 @@ extension GameClientConnection on GameClient {
     if (!_schemeC.isClosed) {
       await _schemeC.close();
     }
+    if (!_controlConfigC.isClosed) {
+      await _controlConfigC.close();
+    }
     if (!_disconnectedC.isClosed) {
       await _disconnectedC.close();
     }

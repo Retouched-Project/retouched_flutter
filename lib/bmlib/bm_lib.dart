@@ -450,6 +450,12 @@ class BmLib {
     int y,
   ) => emit(engine, {'type': 'SendDPad', 'target': targetId, 'x': x, 'y': y});
 
+  List<BmOutgoing> makeSendKeyString(
+    ffi.Pointer<ffi.Void> engine,
+    String targetId,
+    String key,
+  ) => emit(engine, {'type': 'SendKeyString', 'target': targetId, 'key': key});
+
   List<BmOutgoing> makeTouchSet(
     ffi.Pointer<ffi.Void> engine,
     String targetId,

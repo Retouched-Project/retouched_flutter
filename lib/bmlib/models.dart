@@ -180,6 +180,7 @@ class BmEvent {
   String? get controlMode => raw['control_mode'] as String?;
   String? get portalId => raw['portal_id'] as String?;
   String? get returnAppId => raw['return_app_id'] as String?;
+  String? get startString => raw['start_string'] as String?;
 }
 
 class BmProcessOutput {

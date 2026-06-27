@@ -23,6 +23,13 @@ extension GameClientInput on GameClient {
     _sendOutgoings(actions);
   }
 
+  void sendKeyString(String key) {
+    final game = _activeGame;
+    if (game == null) return;
+    final actions = _lib.makeSendKeyString(_engine!, game.deviceId, key);
+    _sendOutgoings(actions);
+  }
+
   void handleTouchSet(
     List<ControlTouchPoint> touches,
     int screenWidth,
