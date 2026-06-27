@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'game_client.dart';
+import 'game_client/game_client.dart';
 import 'bmrender/controls/scheme.pb.dart';
 import 'bmrender/controls/scheme_extensions.dart';
 import 'bmrender/controls/control_orientation.dart';

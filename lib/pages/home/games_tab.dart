@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../game_client.dart';
+import '../../game_client/game_client.dart';
 import '../../bmlib/bm_lib.dart';
 import '../../widgets/stacked_background_icons.dart';
 

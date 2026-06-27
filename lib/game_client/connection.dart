@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
+
+part of 'game_client.dart';
+
+extension GameClientConnection on GameClient {
+  void setCapabilitiesOverride(int? mask) {
+    _capabilities.setOverride(mask);
+  }
+
+  Future<void> connect({Duration timeout = const Duration(seconds: 5)}) async {
+    _lib.init();
+    _registry.registerCompleter = Completer<void>();
+    _registry.listCompleter = Completer<void>();
+
+    try {
+      _socket = await Socket.connect(server.ip, serverPort, timeout: timeout);
+      _socket!.setOption(SocketOption.tcpNoDelay, true);
+      _sub = _socket!.listen(
+        _onData,
+        onError: (e) {
+          _safeCompleteError(_registry.registerCompleter, e);
+          _safeComplete(_registry.listCompleter);
+        },
+        onDone: _onDone,
+      );
+
+      _engine = _lib.createEngine();
+      _assembler = _lib.createSchemeAssembler();
+      await _initIdentity();
+
+      final localHost = await _determineLocalHost();
+      _lib.initLocalDevice(
+        _engine!,
+        _deviceId!,
+        _deviceName!,
+        _deviceType,
+        localHost,
+        udpPort,
+        clientPort,
+      );
+
+      _lib.registerDevice(
+        _engine!,
+        serverDeviceId,
+        serverDeviceName,
+        DeviceTypeCodes.server,
+        server.ip,
+        0,
+        serverPort,
+      );
+
+      await _bindGameListeners();
+
+      final ver = _lib.handshakeBytes();
+      _socket!.add(ver);
+      await _socket!.flush();
+
+      await _sendRegistration(localHost);
+      await _waitForRegister(timeout: timeout);
+
+      await requestList();
+      _capabilities.get();
+    } catch (_) {
+      await close();
+      rethrow;
+    }
+  }
+
+  Future<String> _determineLocalHost() async {
+    final override = server.localIp?.trim();
+    if (override != null && override.isNotEmpty && override != '0.0.0.0') {
+      return override;
+    }
+    final local = _socket?.address.address;
+    if (local != null &&
+        local.isNotEmpty &&
+        local != '0.0.0.0' &&
+        local != server.ip) {
+      return local;
+    }
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      final serverParts = server.ip.split('.');
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          if (ip.isEmpty || ip.startsWith('169.254.')) continue;
+          if (serverParts.length == 4) {
+            final parts = ip.split('.');
+            if (parts.length == 4 &&
+                parts[0] == serverParts[0] &&
+                parts[1] == serverParts[1] &&
+                parts[2] == serverParts[2]) {
+              return ip;
+            }
+          }
+        }
+      }
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          if (ip.isNotEmpty && !ip.startsWith('169.254.')) {
+            return ip;
+          }
+        }
+      }
+    } catch (_) {}
+    return local ?? '0.0.0.0';
+  }
+
+  Future<void> requestList() async {
+    final actions = _lib.makeRegistryList(_engine!, serverDeviceId);
+    _sendOutgoings(actions);
+  }
+
+  Future<List<String>> waitForList(Duration timeout) async {
+    if (_registry.games.isNotEmpty) return _registry.games;
+    _registry.listCompleter ??= Completer<void>();
+    final timer = Timer(timeout, () => _safeComplete(_registry.listCompleter));
+    await _registry.listCompleter!.future;
+    timer.cancel();
+    return _registry.games;
+  }
+
+  Future<void> close() async {
+    await _sub?.cancel();
+    _sub = null;
+    await _socket?.close();
+    _socket = null;
+    await _udpSub?.cancel();
+    _udpSub = null;
+    _udpSocket?.close();
+    _udpSocket = null;
+    await _gameSub?.cancel();
+    _gameSub = null;
+    await _gameSocket?.close();
+    _gameSocket = null;
+    await _gameServer?.close();
+    _gameServer = null;
+    _sensors.stopAll();
+    _touch.cancel();
+    _registryFramer.clear();
+    _gameFramer.clear();
+    if (_engine != null) {
+      _lib.freeEngine(_engine!);
+      _engine = null;
+    }
+    _assembler?.dispose();
+    _assembler = null;
+    if (!_gamesC.isClosed) {
+      await _gamesC.close();
+    }
+    if (!_progressC.isClosed) {
+      await _progressC.close();
+    }
+    if (!_schemeC.isClosed) {
+      await _schemeC.close();
+    }
+    if (!_disconnectedC.isClosed) {
+      await _disconnectedC.close();
+    }
+  }
+
+  Future<void> _initIdentity() async {
+    if (_deviceId != null) return;
+    _deviceId = DeviceInfo.generateDeviceId();
+    _appId = DeviceInfo.generateAppId();
+    _deviceType = DeviceInfo.platformDeviceTypeCode();
+    _deviceName = await DeviceInfo().getDeviceName();
+  }
+
+  Future<void> _sendRegistration(String localHost) async {
+    final info = BmRegistryInfo(
+      slotId: 0,
+      appId: _appId ?? 'retouched',
+      currentPlayers: 0,
+      maxPlayers: 0,
+      deviceType: _deviceType,
+      deviceId: _deviceId ?? '',
+      deviceName: _deviceName ?? 'Unknown',
+      address: localHost,
+      unreliablePort: udpPort,
+      reliablePort: clientPort,
+    );
+    _selfInfo = info;
+    final actions = _lib.makeRegistryRegister(
+      _engine!,
+      serverDeviceId,
+      info,
+      'retouchedflutter',
+    );
+    _sendOutgoings(actions);
+  }
+
+  void _onData(List<int> data) {
+    final frames = _registryFramer.feed(data);
+    for (final frame in frames) {
+      if (debugWire) _logHex('RX frame', frame);
+      _handleOutput(_lib.processIncoming(_engine!, frame));
+    }
+  }
+
+  void _onUdpEvent(RawSocketEvent event) {
+    if (event != RawSocketEvent.read) return;
+    final dg = _udpSocket?.receive();
+    if (dg == null) return;
+    _handleOutput(_lib.processIncomingUdp(_engine!, dg.data));
+  }
+
+  void _onGameData(List<int> data) {
+    if (_handlePolicyRequest(data)) return;
+    final frames = _gameFramer.feed(data);
+    for (final frame in frames) {
+      if (debugWire) _logHex('RX frame', frame);
+      _handleOutput(_lib.processIncoming(_engine!, frame));
+    }
+  }
+
+  void _onDone() {
+    _safeCompleteError(
+      _registry.registerCompleter,
+      const SocketException('Connection closed by server'),
+    );
+    _safeComplete(_registry.listCompleter);
+    _socket = null;
+    _sub = null;
+    _registry.reset();
+    if (!_gamesC.isClosed) {
+      _gamesC.add(const []);
+    }
+    if (!_disconnectedC.isClosed) {
+      _disconnectedC.add(null);
+    }
+  }
+
+  void _onGameDone() {
+    if (_isHandlingPolicy) {
+      _isHandlingPolicy = false;
+      final sub = _gameSub;
+      _gameSub = null;
+      _gameSocket = null;
+      _gameFramer.clear();
+      if (sub != null) unawaited(sub.cancel());
+      return;
+    }
+
+    if (_activeGame != null) {
+      MetricsService.send(
+        type: MetricsService.sessionEnd,
+        appId: _activeGame!.appId,
+        serverIp: server.ip,
+        deviceId: _deviceId ?? '',
+      );
+    }
+    _activeGame = null;
+    _forgetGameSession();
+    if (!_schemeC.isClosed) {
+      _schemeC.add(null);
+    }
+    final sub = _gameSub;
+    _gameSub = null;
+    _gameSocket = null;
+    _gameFramer.clear();
+    if (sub != null) unawaited(sub.cancel());
+  }
+}

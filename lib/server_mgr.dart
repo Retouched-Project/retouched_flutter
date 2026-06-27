@@ -5,7 +5,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'game_client.dart';
+import 'game_client/game_client.dart';
 
 class ServerEntry {
   final String name;
