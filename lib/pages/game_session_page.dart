@@ -5,14 +5,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'game_client/game_client.dart';
-import 'bmrender/controls/scheme.pb.dart';
-import 'bmrender/controls/scheme_extensions.dart';
-import 'bmrender/controls/control_orientation.dart';
-import 'bmrender/bm_render_view.dart';
-import 'bmrender/app_id_rotate_whitelist.dart';
-import 'loading_logo.dart';
-import 'bmrender/unlock_slider.dart';
+import '../game_client/game_client.dart';
+import '../bmrender/controls/scheme.pb.dart';
+import '../bmrender/controls/scheme_extensions.dart';
+import '../bmrender/controls/control_orientation.dart';
+import '../bmrender/bm_render_view.dart';
+import '../bmrender/app_id_rotate_whitelist.dart';
+import '../loading_logo.dart';
+import '../bmrender/unlock_slider.dart';
 
 const _menuIcons = <int, String>{
   0: 'assets/retouched_logo.svg',

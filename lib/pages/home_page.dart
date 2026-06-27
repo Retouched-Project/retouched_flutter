@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../server_mgr.dart';
 import '../game_client/game_client.dart';
 import '../bmlib/bm_lib.dart';
-import '../game_session_page.dart';
+import 'game_session_page.dart';
 import 'home/servers_tab.dart';
 import 'home/games_tab.dart';
 import 'home/options_tab.dart';
