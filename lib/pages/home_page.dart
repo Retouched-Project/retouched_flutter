@@ -200,6 +200,7 @@ class _HomePageState extends State<HomePage>
         ),
       );
     }
+    _restoreSystemUi();
     _inSession = false;
     if (_pendingServerDisconnect && mounted) {
       _pendingServerDisconnect = false;
@@ -212,6 +213,21 @@ class _HomePageState extends State<HomePage>
       });
       await staleClient?.close();
     }
+  }
+
+  // Re-assert edge-to-edge after returning from the fullscreen game session. The
+  // game runs in immersiveSticky, and some Android OEMs (HyperOS) do not show the
+  // system bars again from a plain edgeToEdge call made while the game route is
+  // tearing down.
+  void _restoreSystemUi() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    });
   }
 
   @override
