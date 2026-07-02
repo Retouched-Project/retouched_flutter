@@ -68,6 +68,14 @@ class ControlViewBuilder {
     for (final entry in results) {
       if (entry != null) staging[entry.key] = entry.value;
     }
+
+    final needsBuiltInDpad = scheme.getDisplayObjects().any(
+      (o) => o.getType() == 'dpad' && !o.hasAssets(),
+    );
+    if (needsBuiltInDpad) {
+      await DpadSkin.loadBuiltIn();
+    }
+
     return staging;
   }
 
@@ -121,7 +129,13 @@ class ControlViewBuilder {
       if (obj.getType() == 'button') {
         newControl = _updateButton(obj, existing, baseW, baseH);
       } else if (obj.getType() == 'image') {
-        newControl = _updateImage(obj, existing, baseW, baseH, widescreenStretched);
+        newControl = _updateImage(
+          obj,
+          existing,
+          baseW,
+          baseH,
+          widescreenStretched,
+        );
       } else if (obj.getType() == 'text') {
         newControl = _updateText(obj, existing, baseW, baseH);
       } else if (obj.getType() == 'dpad') {
@@ -130,7 +144,13 @@ class ControlViewBuilder {
           obj.getFunctionHandler()!.isNotEmpty) {
         newControl = _updateButton(obj, existing, baseW, baseH);
       } else {
-        newControl = _updateImage(obj, existing, baseW, baseH, widescreenStretched);
+        newControl = _updateImage(
+          obj,
+          existing,
+          baseW,
+          baseH,
+          widescreenStretched,
+        );
       }
 
       newControls.add(newControl);
@@ -187,6 +207,17 @@ class ControlViewBuilder {
       );
     }
     return img;
+  }
+
+  DpadSkin _dpadSkinFromDisplayObject(DisplayObject obj) {
+    if (!obj.hasAssets()) {
+      return DpadSkin.builtInOrNull() ?? DpadSkin();
+    }
+    final skin = DpadSkin();
+    for (int i = 0; i < DpadSkin.frameNames.length; i++) {
+      skin.setFrame(i, _bitmapFor(obj, DpadSkin.frameNames[i]));
+    }
+    return skin;
   }
 
   ControlDrawable _updateImage(
@@ -317,11 +348,7 @@ class ControlViewBuilder {
     drawable.setDisabled(obj.isHidden());
     drawable.setSampling(obj.getSamplingMode());
 
-    final skin = DpadSkin();
-    for (int i = 0; i < DpadSkin.frameNames.length; i++) {
-      skin.setFrame(i, _bitmapFor(obj, DpadSkin.frameNames[i]));
-    }
-    drawable.setSkin(skin);
+    drawable.setSkin(_dpadSkinFromDisplayObject(obj));
 
     return drawable;
   }

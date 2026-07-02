@@ -52,6 +52,7 @@ flutter:
     - assets/cross.svg
     - assets/host.svg
     - assets/server.svg
+    - assets/dpad/
 
 flutter_launcher_icons:
   android: true
