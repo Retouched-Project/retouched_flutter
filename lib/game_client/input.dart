@@ -30,6 +30,13 @@ extension GameClientInput on GameClient {
     _sendOutgoings(actions);
   }
 
+  void sendNavigation(String nav) {
+    final game = _activeGame;
+    if (game == null) return;
+    final actions = _lib.makeSendNavigation(_engine!, game.deviceId, nav);
+    _sendOutgoings(actions);
+  }
+
   void handleTouchSet(
     List<ControlTouchPoint> touches,
     int screenWidth,

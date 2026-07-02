@@ -13,6 +13,7 @@ import '../bmrender/bm_render_view.dart';
 import '../bmrender/app_id_rotate_whitelist.dart';
 import '../widgets/loading_logo.dart';
 import '../widgets/keyboard_overlay.dart';
+import '../widgets/nav_overlay.dart';
 import '../bmrender/unlock_slider.dart';
 
 const _menuIcons = <int, String>{
@@ -83,7 +84,7 @@ class _GameSessionPageState extends State<GameSessionPage>
       setState(() {
         _currentScheme = scheme;
         _loading = false;
-        _applyOrientation(_effectiveOrientation(scheme));
+        _applyOrientationForMode();
       });
     } else {
       _disconnectAndPop();
@@ -93,6 +94,7 @@ class _GameSessionPageState extends State<GameSessionPage>
   void _onControlConfig(GameControlConfig cfg) {
     if (!mounted || _popping) return;
     setState(() => _controlConfig = cfg);
+    _applyOrientationForMode();
   }
 
   Future<void> _disconnectAndPop() async {
@@ -134,6 +136,14 @@ class _GameSessionPageState extends State<GameSessionPage>
       ]);
     } else {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    }
+  }
+
+  void _applyOrientationForMode() {
+    if (_controlConfig?.mode == 'Navigation') {
+      _applyOrientation(ControlOrientation.portrait);
+    } else {
+      _applyOrientation(_effectiveOrientation(_currentScheme));
     }
   }
 
@@ -329,6 +339,10 @@ class _GameSessionPageState extends State<GameSessionPage>
       );
     }
 
+    final sliderLandscape =
+        _controlConfig?.mode != 'Navigation' &&
+        _effectiveOrientation(_currentScheme) == ControlOrientation.landscape;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SizedBox.expand(
@@ -346,20 +360,6 @@ class _GameSessionPageState extends State<GameSessionPage>
                 forceRotate: _whitelisted,
               ),
             ),
-            Positioned(
-              top:
-                  _effectiveOrientation(_currentScheme) ==
-                      ControlOrientation.landscape
-                  ? 12
-                  : 56,
-              right:
-                  24 +
-                  (_effectiveOrientation(_currentScheme) ==
-                          ControlOrientation.landscape
-                      ? 48.0
-                      : 0.0),
-              child: UnlockSlider(key: _sliderKey, onUnlocked: _showPauseMenu),
-            ),
             if (_controlConfig?.mode == 'Keyboard')
               Positioned.fill(
                 child: KeyboardOverlay(
@@ -368,6 +368,15 @@ class _GameSessionPageState extends State<GameSessionPage>
                   onKey: widget.client.sendKeyString,
                 ),
               ),
+            if (_controlConfig?.mode == 'Navigation')
+              Positioned.fill(
+                child: NavOverlay(onNav: widget.client.sendNavigation),
+              ),
+            Positioned(
+              top: sliderLandscape ? 12 : 56,
+              right: 24 + (sliderLandscape ? 48.0 : 0.0),
+              child: UnlockSlider(key: _sliderKey, onUnlocked: _showPauseMenu),
+            ),
           ],
         ),
       ),

@@ -456,6 +456,12 @@ class BmLib {
     String key,
   ) => emit(engine, {'type': 'SendKeyString', 'target': targetId, 'key': key});
 
+  List<BmOutgoing> makeSendNavigation(
+    ffi.Pointer<ffi.Void> engine,
+    String targetId,
+    String nav,
+  ) => emit(engine, {'type': 'SendNavigation', 'target': targetId, 'nav': nav});
+
   List<BmOutgoing> makeTouchSet(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
