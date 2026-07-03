@@ -52,6 +52,7 @@ flutter:
     - assets/cross.svg
     - assets/host.svg
     - assets/server.svg
+    - assets/wait.svg
     - assets/dpad/
     - assets/nav/
 

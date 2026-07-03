@@ -14,6 +14,7 @@ import '../bmrender/app_id_rotate_whitelist.dart';
 import '../widgets/loading_logo.dart';
 import '../widgets/keyboard_overlay.dart';
 import '../widgets/nav_overlay.dart';
+import '../widgets/wait_overlay.dart';
 import '../bmrender/unlock_slider.dart';
 
 const _menuIcons = <int, String>{
@@ -140,7 +141,8 @@ class _GameSessionPageState extends State<GameSessionPage>
   }
 
   void _applyOrientationForMode() {
-    if (_controlConfig?.mode == 'Navigation') {
+    final mode = _controlConfig?.mode;
+    if (mode == 'Navigation' || mode == 'Wait') {
       _applyOrientation(ControlOrientation.portrait);
     } else {
       _applyOrientation(_effectiveOrientation(_currentScheme));
@@ -339,8 +341,10 @@ class _GameSessionPageState extends State<GameSessionPage>
       );
     }
 
+    final mode = _controlConfig?.mode;
     final sliderLandscape =
-        _controlConfig?.mode != 'Navigation' &&
+        mode != 'Navigation' &&
+        mode != 'Wait' &&
         _effectiveOrientation(_currentScheme) == ControlOrientation.landscape;
 
     return Scaffold(
@@ -372,6 +376,8 @@ class _GameSessionPageState extends State<GameSessionPage>
               Positioned.fill(
                 child: NavOverlay(onNav: widget.client.sendNavigation),
               ),
+            if (_controlConfig?.mode == 'Wait')
+              const Positioned.fill(child: WaitOverlay()),
             Positioned(
               top: sliderLandscape ? 12 : 56,
               right: 24 + (sliderLandscape ? 48.0 : 0.0),
