@@ -27,7 +27,6 @@ part 'session.dart';
 part 'transport.dart';
 
 final _log = Logger('retouched.GameClient');
-final _wireLog = Logger('retouched.GameClient.wire');
 
 const int clientPort = 9081;
 const int udpPort = 9080;
@@ -63,7 +62,6 @@ class GameControlConfig {
 }
 
 class GameClient {
-  bool debugWire = true;
   final ServerEntry server;
   final BmLib _lib = BmLib.instance;
   ffi.Pointer<ffi.Void>? _engine;

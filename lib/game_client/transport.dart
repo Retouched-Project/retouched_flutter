@@ -6,7 +6,6 @@ part of 'game_client.dart';
 extension GameClientTransport on GameClient {
   void _sendOutgoings(List<BmOutgoing> outgoings) {
     for (final outgoing in outgoings) {
-      if (debugWire) _logHex('TX frame', outgoing.payload);
       final game = _activeGame;
       if (outgoing.reliability == 0 &&
           game != null &&
@@ -57,14 +56,5 @@ extension GameClientTransport on GameClient {
       return true;
     }
     return false;
-  }
-
-  void _logHex(String tag, Uint8List data) {
-    final sb = StringBuffer();
-    for (var i = 0; i < data.length; i++) {
-      if (i > 0) sb.write(' ');
-      sb.write(data[i].toRadixString(16).padLeft(2, '0'));
-    }
-    _wireLog.fine('$tag (${data.length} bytes): $sb');
   }
 }

@@ -202,7 +202,6 @@ extension GameClientConnection on GameClient {
   void _onData(List<int> data) {
     final frames = _registryFramer.feed(data);
     for (final frame in frames) {
-      if (debugWire) _logHex('RX frame', frame);
       _handleOutput(_lib.processIncoming(_engine!, frame));
     }
   }
@@ -218,7 +217,6 @@ extension GameClientConnection on GameClient {
     if (_handlePolicyRequest(data)) return;
     final frames = _gameFramer.feed(data);
     for (final frame in frames) {
-      if (debugWire) _logHex('RX frame', frame);
       _handleOutput(_lib.processIncoming(_engine!, frame));
     }
   }

@@ -7,6 +7,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as mp;
+
+import 'bm_log.dart';
 import 'models.dart';
 
 export 'codes.dart';
@@ -193,6 +195,29 @@ class BmLib {
         void Function(ffi.Pointer<ffi.Void>)
       >('bm_scheme_assembler_reset');
 
+  late final _logConfigure = _lib
+      .lookupFunction<
+        ffi.Bool Function(ffi.Uint8, ffi.IntPtr),
+        bool Function(int, int)
+      >('bm_log_configure');
+
+  late final _logSetLevel = _lib
+      .lookupFunction<ffi.Bool Function(ffi.Uint8), bool Function(int)>(
+        'bm_log_set_level',
+      );
+
+  late final _logTake = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_log_take');
+
   void init() {
     if (_initialized) return;
     _bmLibraryInit();
@@ -205,6 +230,21 @@ class BmLib {
 
   BmSchemeAssembler createSchemeAssembler() =>
       BmSchemeAssembler._(this, _assemblerNew());
+
+  bool configureLogging(int level, int capacity) =>
+      _logConfigure(level, capacity);
+
+  bool setLogLevel(int level) => _logSetLevel(level);
+
+  BmLogDrain takeLogs() {
+    final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final ok = _logTake(outPtr, outLen);
+    final bytes = _readOut(ok, outPtr, outLen);
+    calloc.free(outPtr);
+    calloc.free(outLen);
+    return BmLogDrain.fromBytes(bytes);
+  }
 
   Uint8List _readOut(
     bool ok,

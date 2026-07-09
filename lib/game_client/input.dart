@@ -53,9 +53,7 @@ extension GameClientInput on GameClient {
   }
 
   void enableTouch(bool enabled) {
-    if (debugWire) {
-      _log.fine('enableTouch: $enabled');
-    }
+    _log.fine('enableTouch: $enabled');
     _touchEnabled = enabled;
     if (_currentScheme != null) {
       _currentScheme!.touchEnabled = enabled;

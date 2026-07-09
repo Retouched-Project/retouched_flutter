@@ -2,6 +2,7 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'package:flutter/material.dart';
+import '../logs_page.dart';
 
 class OptionsTab extends StatelessWidget {
   const OptionsTab({
@@ -101,6 +102,18 @@ class OptionsTab extends StatelessWidget {
             style: const TextStyle(color: Colors.grey),
           ),
           onTap: () => _showConnectionTimeoutDialog(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.article_outlined, color: Colors.white),
+          title: const Text('Logs', style: TextStyle(color: Colors.white)),
+          subtitle: const Text(
+            'View app and engine logs',
+            style: TextStyle(color: Colors.grey),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const LogsPage())),
         ),
       ],
     );

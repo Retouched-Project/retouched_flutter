@@ -45,19 +45,15 @@ extension GameClientEvents on GameClient {
         _handleInvoke(event);
         break;
       default:
-        if (debugWire) {
-          _log.fine('Unhandled event: ${event.type}');
-        }
+        _log.finest('Unhandled event: ${event.type}');
         break;
     }
   }
 
   void _handleHandshake(BmEvent event) {
-    if (debugWire) {
-      _log.fine(
-        'Handshake event received: current=${event.current}, minimum=${event.minimum}',
-      );
-    }
+    _log.fine(
+      'Handshake event received: current=${event.current}, minimum=${event.minimum}',
+    );
     if (_activeGame != null && !_gameHandshakeHandled) {
       _gameHandshakeHandled = true;
       _doGameInitSequence();
@@ -70,9 +66,7 @@ extension GameClientEvents on GameClient {
         _doVibrate();
         break;
       default:
-        if (debugWire) {
-          _log.warning('Unhandled invoke: ${invoke.method}');
-        }
+        _log.warning('Unhandled invoke: ${invoke.method}');
         break;
     }
   }
