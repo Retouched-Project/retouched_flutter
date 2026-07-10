@@ -44,6 +44,9 @@ extension GameClientEvents on GameClient {
       case 'Invoke':
         _handleInvoke(event);
         break;
+      case 'ConnectionFailed':
+        _handleConnectionFailed(event);
+        break;
       default:
         _log.finest('Unhandled event: ${event.type}');
         break;
@@ -57,6 +60,14 @@ extension GameClientEvents on GameClient {
     if (_activeGame != null && !_gameHandshakeHandled) {
       _gameHandshakeHandled = true;
       _doGameInitSequence();
+    }
+  }
+
+  void _handleConnectionFailed(BmEvent event) {
+    final failed = event.deviceId;
+    _log.warning('Game reported connection failed: $failed');
+    if (failed.isNotEmpty && failed == _activeGame?.deviceId) {
+      unawaited(disconnectGame());
     }
   }
 
