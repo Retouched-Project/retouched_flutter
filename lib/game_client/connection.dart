@@ -39,6 +39,7 @@ extension GameClientConnection on GameClient {
         udpPort,
         clientPort,
       );
+      _lib.setRoleEnabled(_engine!, RoleCodes.controller, true);
 
       _lib.registerDevice(
         _engine!,
