@@ -44,6 +44,9 @@ extension GameClientEvents on GameClient {
       case 'Invoke':
         _handleInvoke(event);
         break;
+      case 'PeerConnected':
+        _handlePeerConnected(event);
+        break;
       case 'ConnectionFailed':
         _handleConnectionFailed(event);
         break;
@@ -61,6 +64,21 @@ extension GameClientEvents on GameClient {
       _gameHandshakeHandled = true;
       _doGameInitSequence();
     }
+  }
+
+  void _handlePeerConnected(BmEvent event) {
+    final game = _activeGame;
+    final socket = _gameSocket;
+    if (game == null || socket == null || event.peerDeviceId != game.deviceId) {
+      return;
+    }
+    final gameIp = socket.remoteAddress.address;
+    _activeGame = game.withEndpoint(
+      address: gameIp,
+      unreliablePort: event.peerUnreliablePort,
+      reliablePort: game.reliablePort,
+    );
+    _log.fine('Adopted game UDP endpoint: $gameIp:${event.peerUnreliablePort}');
   }
 
   void _handleConnectionFailed(BmEvent event) {

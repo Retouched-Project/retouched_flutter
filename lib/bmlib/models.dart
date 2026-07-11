@@ -44,6 +44,23 @@ class BmRegistryInfo {
     required this.reliablePort,
   });
 
+  BmRegistryInfo withEndpoint({
+    required String address,
+    required int unreliablePort,
+    required int reliablePort,
+  }) => BmRegistryInfo(
+    slotId: slotId,
+    appId: appId,
+    currentPlayers: currentPlayers,
+    maxPlayers: maxPlayers,
+    deviceType: deviceType,
+    deviceId: deviceId,
+    deviceName: deviceName,
+    address: address,
+    unreliablePort: unreliablePort,
+    reliablePort: reliablePort,
+  );
+
   factory BmRegistryInfo.fromWire(Map m) {
     final device = (m['device'] as Map?) ?? const {};
     final addr = (m['device_address'] as Map?) ?? const {};
@@ -139,6 +156,11 @@ class BmEvent {
 
   String get sender => (raw['sender'] as String?) ?? '';
   String get deviceId => (raw['device_id'] as String?) ?? '';
+
+  Map? get _peerCore => (raw['record'] as Map?)?['core'] as Map?;
+  String get peerDeviceId => (_peerCore?['device_id'] as String?) ?? '';
+  int get peerUnreliablePort =>
+      ((_peerCore?['address'] as Map?)?['unreliable_port'] as int?) ?? 0;
   bool get success => (raw['success'] as bool?) ?? false;
   String? get domain => raw['domain'] as String?;
 
