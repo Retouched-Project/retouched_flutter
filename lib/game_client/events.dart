@@ -78,7 +78,7 @@ extension GameClientEvents on GameClient {
       unreliablePort: event.peerUnreliablePort,
       reliablePort: game.reliablePort,
     );
-    _log.fine('Adopted game UDP endpoint: $gameIp:${event.peerUnreliablePort}');
+    _log.info('Ack set UDP endpoint: $gameIp:${event.peerUnreliablePort}');
   }
 
   void _handleConnectionFailed(BmEvent event) {
