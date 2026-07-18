@@ -224,6 +224,30 @@ class BmLib {
         )
       >('bm_log_take');
 
+  late final _generateDeviceId = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_generate_device_id');
+
+  late final _generateAppId = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_generate_app_id');
+
   void init() {
     if (_initialized) return;
     _bmLibraryInit();
@@ -250,6 +274,23 @@ class BmLib {
     calloc.free(outPtr);
     calloc.free(outLen);
     return BmLogDrain.fromBytes(bytes);
+  }
+
+  String generateDeviceId() => _readIdString(_generateDeviceId);
+
+  String generateAppId() => _readIdString(_generateAppId);
+
+  String _readIdString(
+    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.IntPtr>)
+    call,
+  ) {
+    final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final ok = call(outPtr, outLen);
+    final bytes = _readOut(ok, outPtr, outLen);
+    calloc.free(outPtr);
+    calloc.free(outLen);
+    return String.fromCharCodes(bytes);
   }
 
   Uint8List _readOut(

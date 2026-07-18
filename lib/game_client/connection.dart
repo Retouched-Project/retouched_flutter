@@ -171,7 +171,7 @@ extension GameClientConnection on GameClient {
 
   Future<void> _initIdentity() async {
     if (_deviceId != null) return;
-    _deviceId = DeviceInfo.generateDeviceId();
+    _deviceId = _lib.generateDeviceId();
     _appId = DeviceInfo.generateAppId();
     _deviceType = DeviceInfo.platformDeviceTypeCode();
     _deviceName = await DeviceInfo().getDeviceName();
