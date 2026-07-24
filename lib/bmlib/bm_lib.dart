@@ -129,22 +129,6 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_handshake');
 
-  late final _safeImage = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_safe_image_memory');
-
   late final _assemblerNew = _lib
       .lookupFunction<
         ffi.Pointer<ffi.Void> Function(),
@@ -632,11 +616,6 @@ class BmLib {
     'target': targetId,
     'event': event,
   });
-
-  Uint8List safeImageMemory(Uint8List data) {
-    if (data.isEmpty) return Uint8List(0);
-    return _callOut(data, (ptr, len, op, ol) => _safeImage(ptr, len, op, ol));
-  }
 
   ffi.DynamicLibrary _openLibrary() {
     if (Platform.isWindows) {
