@@ -20,8 +20,8 @@ class TouchStateCodes {
   static const int cancelled = 5;
 }
 
-class RoleCodes {
-  static const int server = 0;
+class EndpointModeCodes {
+  static const int none = 0;
   static const int game = 1;
   static const int controller = 2;
 }

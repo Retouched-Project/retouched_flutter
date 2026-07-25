@@ -63,11 +63,11 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_register_device');
 
-  late final _setRoleEnabled = _lib
+  late final _configureRoles = _lib
       .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32, ffi.Bool),
-        bool Function(ffi.Pointer<ffi.Void>, int, bool)
-      >('bm_engine_set_role_enabled');
+        ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Bool, ffi.Int32),
+        bool Function(ffi.Pointer<ffi.Void>, bool, int)
+      >('bm_engine_configure_roles');
 
   late final _processIncoming = _lib
       .lookupFunction<
@@ -371,11 +371,11 @@ class BmLib {
     _callIn(core, (ptr, len) => _registerDevice(engine, ptr, len));
   }
 
-  bool setRoleEnabled(
-    ffi.Pointer<ffi.Void> engine,
-    int roleCode,
-    bool enabled,
-  ) => _setRoleEnabled(engine, roleCode, enabled);
+  bool configureRoles(
+    ffi.Pointer<ffi.Void> engine, {
+    required bool server,
+    required int endpointMode,
+  }) => _configureRoles(engine, server, endpointMode);
 
   Map<String, dynamic> _deviceCoreWire(
     String id,
