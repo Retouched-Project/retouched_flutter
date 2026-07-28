@@ -338,7 +338,7 @@ class ControlViewBuilder {
 
     _dpadCache[obj.getId()] = drawable;
 
-    drawable.setAspectRatio(1.0);
+    drawable.setAspectRatio((baseH > 0) ? (baseW / baseH) : 1.0);
     drawable.setDeadzone(obj.getDeadzone());
     drawable.setBounds(
       _rectFromObj(obj, baseW, baseH),
