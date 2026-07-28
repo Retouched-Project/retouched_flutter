@@ -19,35 +19,6 @@ extension ControlSchemeExt on ControlScheme {
   List<AppResource> getResources() => resources;
   List<DisplayObject> getDisplayObjects() => displayObjects;
   List<ContextMenuOption> getOptions() => options;
-
-  ControlScheme merge(ControlScheme other) {
-    final newScheme = clone();
-    if (other.hasVersion()) newScheme.version = other.version;
-    if (other.hasOrientation()) newScheme.orientation = other.orientation;
-    if (other.hasTouchEnabled()) newScheme.touchEnabled = other.touchEnabled;
-    if (other.hasAccelerometerEnabled()) {
-      newScheme.accelerometerEnabled = other.accelerometerEnabled;
-    }
-    if (other.hasWidth()) newScheme.width = other.width;
-    if (other.hasHeight()) newScheme.height = other.height;
-
-    if (other.resources.isNotEmpty) {
-      newScheme.resources.clear();
-      newScheme.resources.addAll(other.resources);
-    }
-
-    if (other.displayObjects.isNotEmpty) {
-      newScheme.displayObjects.clear();
-      newScheme.displayObjects.addAll(other.displayObjects);
-    }
-
-    if (other.options.isNotEmpty) {
-      newScheme.options.clear();
-      newScheme.options.addAll(other.options);
-    }
-
-    return newScheme;
-  }
 }
 
 extension AppResourceExt on AppResource {
