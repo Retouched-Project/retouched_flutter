@@ -142,6 +142,7 @@ class GameClient {
   late final Capabilities _capabilities;
   ServerSocket? _policyServer;
   bool _isHandlingPolicy = false;
+  bool _policySniffArmed = false;
   final List<int> _policyBuffer = [];
 
   Stream<List<String>> get gamesStream => _gamesC.stream;

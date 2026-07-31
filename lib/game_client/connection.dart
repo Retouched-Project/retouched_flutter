@@ -219,8 +219,9 @@ extension GameClientConnection on GameClient {
   }
 
   void _onGameData(List<int> data) {
-    if (_handlePolicyRequest(data)) return;
-    final frames = _gameFramer.feed(data);
+    final payload = _filterPolicyRequest(data);
+    if (payload == null) return;
+    final frames = _gameFramer.feed(payload);
     for (final frame in frames) {
       _handleOutput(_lib.processIncoming(_engine!, frame));
     }

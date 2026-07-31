@@ -36,25 +36,36 @@ extension GameClientTransport on GameClient {
     return _socket;
   }
 
-  bool _handlePolicyRequest(List<int> data) {
-    if (data.isEmpty) return false;
-    if (data[0] == 0x3C || _policyBuffer.isNotEmpty) {
-      _policyBuffer.addAll(data);
-      if (_policyBuffer.length >= _policyRequestBytes.length) {
-        final socket = _gameSocket;
-        if (socket != null) {
-          socket.add(_policyResponseBytes);
-          socket
-              .flush()
-              .catchError((_) {})
-              .then((_) => socket.close().catchError((_) {}));
-        }
-        _isHandlingPolicy = true;
+  List<int>? _filterPolicyRequest(List<int> data) {
+    if (!_policySniffArmed) return data;
+    if (data.isEmpty) return null;
+
+    _policyBuffer.addAll(data);
+    final probe = _policyBuffer.length < _policyRequestBytes.length
+        ? _policyBuffer.length
+        : _policyRequestBytes.length;
+    for (var i = 0; i < probe; i++) {
+      if (_policyBuffer[i] != _policyRequestBytes[i]) {
+        _policySniffArmed = false;
+        final buffered = List<int>.of(_policyBuffer);
         _policyBuffer.clear();
-        _gameFramer.clear();
+        return buffered;
       }
-      return true;
     }
-    return false;
+    if (_policyBuffer.length < _policyRequestBytes.length) return null;
+
+    _policySniffArmed = false;
+    _policyBuffer.clear();
+    _gameFramer.clear();
+    _isHandlingPolicy = true;
+    final socket = _gameSocket;
+    if (socket != null) {
+      socket.add(_policyResponseBytes);
+      socket
+          .flush()
+          .catchError((_) {})
+          .then((_) => socket.close().catchError((_) {}));
+    }
+    return null;
   }
 }

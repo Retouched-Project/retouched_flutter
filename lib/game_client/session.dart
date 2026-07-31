@@ -97,6 +97,7 @@ extension GameClientSession on GameClient {
       _gameFramer.clear();
       _policyBuffer.clear();
       _isHandlingPolicy = false;
+      _policySniffArmed = true;
       if (staleSub != null) unawaited(staleSub.cancel());
       if (staleSocket != null) unawaited(staleSocket.close());
       socket.setOption(SocketOption.tcpNoDelay, true);
