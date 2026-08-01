@@ -41,11 +41,19 @@ class DpadSkin {
   static Future<DpadSkin> loadBuiltIn() {
     final cached = _builtIn;
     if (cached != null) return Future.value(cached);
-    return _builtInLoading ??= _rasterizeBuiltIn().then((skin) {
-      _builtIn = skin;
-      _builtInLoading = null;
-      return skin;
-    });
+    // Clearing the pending future on failure keeps one bad load from poisoning
+    // every later scheme that needs the built-in skin.
+    return _builtInLoading ??= _rasterizeBuiltIn().then(
+      (skin) {
+        _builtIn = skin;
+        _builtInLoading = null;
+        return skin;
+      },
+      onError: (Object e, StackTrace st) {
+        _builtInLoading = null;
+        Error.throwWithStackTrace(e, st);
+      },
+    );
   }
 
   static Future<DpadSkin> _rasterizeBuiltIn() async {

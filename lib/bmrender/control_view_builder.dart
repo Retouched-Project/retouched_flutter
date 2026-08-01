@@ -33,34 +33,38 @@ class ControlViewBuilder {
     this.preserveDpadDragEnabled = false,
   });
 
-  bool hasAllResources(ControlScheme scheme) {
-    for (final res in scheme.getResources()) {
-      if (!_bitmapCache.containsKey(res.getId())) return false;
-    }
-    return true;
-  }
-
-  Future<Map<int, ui.Image>> decodeResources(ControlScheme scheme) async {
+  // A merged scheme carries every resource it has ever seen, not just the ones
+  // that changed, so [changed] is what says which bitmaps are actually new. An
+  // id missing from the cache is decoded regardless of that, which covers both
+  // a fresh builder and a retry after a failed decode.
+  Future<Map<int, ui.Image>> decodeResources(
+    ControlScheme scheme,
+    Set<int> changed,
+  ) async {
     final resources = scheme.getResources();
     _log.fine('Decoding resources: ${resources.length} resources.');
 
     final futures = <Future<MapEntry<int, ui.Image>?>>[];
+    var reused = 0;
     for (final res in resources) {
       final id = res.getId();
       final data = res.getBitmap();
-      if (data != null && data.isNotEmpty) {
-        futures.add(() async {
-          try {
-            final codec = await ui.instantiateImageCodec(data);
-            final frame = await codec.getNextFrame();
-            codec.dispose();
-            return MapEntry(id, frame.image);
-          } catch (e) {
-            _log.warning('Error decoding resource $id: $e');
-            return null;
-          }
-        }());
+      if (data == null || data.isEmpty) continue;
+      if (!changed.contains(id) && _bitmapCache.containsKey(id)) {
+        reused++;
+        continue;
       }
+      futures.add(() async {
+        try {
+          final codec = await ui.instantiateImageCodec(data);
+          final frame = await codec.getNextFrame();
+          codec.dispose();
+          return MapEntry(id, frame.image);
+        } catch (e) {
+          _log.warning('Error decoding resource $id: $e');
+          return null;
+        }
+      }());
     }
 
     final results = await Future.wait(futures);
@@ -68,6 +72,9 @@ class ControlViewBuilder {
     for (final entry in results) {
       if (entry != null) staging[entry.key] = entry.value;
     }
+    _log.fine(
+      'Decoded ${staging.length} resources, reused $reused cached resources.',
+    );
 
     final needsBuiltInDpad = scheme.getDisplayObjects().any(
       (o) => o.getType() == 'dpad' && !o.hasAssets(),
@@ -79,13 +86,15 @@ class ControlViewBuilder {
     return staging;
   }
 
+  // Swaps decoded images into the cache and returns the ones they displaced,
+  // for the caller to dispose once the new scheme is on screen.
   List<ui.Image> applyResources(Map<int, ui.Image> decoded) {
     final List<ui.Image> replaced = [];
-    for (final entry in decoded.entries) {
-      final old = _bitmapCache[entry.key];
+    decoded.forEach((id, image) {
+      final old = _bitmapCache[id];
       if (old != null) replaced.add(old);
-      _bitmapCache[entry.key] = entry.value;
-    }
+      _bitmapCache[id] = image;
+    });
     return replaced;
   }
 

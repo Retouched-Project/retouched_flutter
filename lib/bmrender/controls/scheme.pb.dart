@@ -27,6 +27,7 @@ class ControlScheme extends $pb.GeneratedMessage {
     $core.Iterable<AppResource>? resources,
     $core.Iterable<DisplayObject>? displayObjects,
     $core.Iterable<ContextMenuOption>? options,
+    $core.Iterable<$core.int>? changedResources,
   }) {
     final result = create();
     if (version != null) result.version = version;
@@ -39,6 +40,8 @@ class ControlScheme extends $pb.GeneratedMessage {
     if (resources != null) result.resources.addAll(resources);
     if (displayObjects != null) result.displayObjects.addAll(displayObjects);
     if (options != null) result.options.addAll(options);
+    if (changedResources != null)
+      result.changedResources.addAll(changedResources);
     return result;
   }
 
@@ -67,6 +70,8 @@ class ControlScheme extends $pb.GeneratedMessage {
         subBuilder: DisplayObject.create)
     ..pPM<ContextMenuOption>(9, _omitFieldNames ? '' : 'options',
         subBuilder: ContextMenuOption.create)
+    ..p<$core.int>(
+        10, _omitFieldNames ? '' : 'changedResources', $pb.PbFieldType.K3)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -150,6 +155,14 @@ class ControlScheme extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(9)
   $pb.PbList<ContextMenuOption> get options => $_getList(8);
+
+  /// Ids of the resources the most recent update carried, which are the only
+  /// ones whose bitmap data can have changed. A merged scheme repeats every
+  /// resource it has ever seen, so without this a renderer cannot tell which
+  /// bitmaps need decoding again. Empty on a scheme that came straight from the
+  /// parser; every id on an initial scheme.
+  @$pb.TagNumber(10)
+  $pb.PbList<$core.int> get changedResources => $_getList(9);
 }
 
 class AppResource extends $pb.GeneratedMessage {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
-import 'dart:collection';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'controls/scheme.pb.dart';
 import 'controls/scheme_extensions.dart';
 import 'controls/control_orientation.dart';
@@ -48,6 +48,8 @@ class BMRenderView extends StatefulWidget {
 
 class _BMRenderViewState extends State<BMRenderView>
     implements SelectionController {
+  static final _log = Logger('retouched.BMRenderView');
+
   final Map<int, ControlTouchPoint> _touches = {};
   final Map<int, Offset> _pointerPositions = {};
 
@@ -64,7 +66,8 @@ class _BMRenderViewState extends State<BMRenderView>
   double _baseH = 480.0;
   bool _rotated = false;
 
-  final Queue<ControlScheme> _schemeQueue = Queue();
+  ControlScheme? _pendingScheme;
+  final Set<int> _pendingChanged = {};
   bool _isProcessingQueue = false;
 
   @override
@@ -110,29 +113,58 @@ class _BMRenderViewState extends State<BMRenderView>
   }
 
   void _enqueueScheme(ControlScheme scheme) {
-    _schemeQueue.add(scheme);
+    // Every scheme carries the complete merged state, so a newer one fully
+    // supersedes anything still waiting to be applied. The changed ids are the
+    // exception: they describe one update each, so a superseded scheme's ids
+    // still have to be decoded and are folded in rather than dropped.
+    _pendingScheme = scheme;
+    _pendingChanged.addAll(scheme.changedResources);
     _processQueue();
   }
 
   Future<void> _processQueue() async {
     if (_isProcessingQueue) return; // already draining
     _isProcessingQueue = true;
-    while (_schemeQueue.isNotEmpty) {
-      final scheme = _schemeQueue.removeFirst();
+    try {
+      while (_pendingScheme != null) {
+        final scheme = _pendingScheme!;
+        final changed = Set<int>.of(_pendingChanged);
+        _pendingScheme = null;
+        _pendingChanged.clear();
+        try {
+          // Decoding happens off-frame; the swap below is synchronous so no
+          // half-applied scheme is ever painted.
+          final decoded = await _builder.decodeResources(scheme, changed);
+          if (!mounted) {
+            for (final img in decoded.values) {
+              img.dispose();
+            }
+            return;
+          }
 
-      final decoded = await _builder.decodeResources(scheme);
-      if (!mounted) {
-        _isProcessingQueue = false;
-        return;
+          final oldImages = _builder.applyResources(decoded);
+          _updateControls(scheme);
+          for (final img in oldImages) {
+            img.dispose();
+          }
+        } catch (e, st) {
+          // Nothing was applied, so these ids still need decoding whenever the
+          // next scheme arrives.
+          _pendingChanged.addAll(changed);
+          _log.warning('Applying control scheme failed: $e');
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: e,
+              stack: st,
+              library: 'retouched_flutter',
+              context: ErrorDescription('applying a control scheme'),
+            ),
+          );
+        }
       }
-
-      final oldImages = _builder.applyResources(decoded);
-      _updateControls(scheme);
-      for (final img in oldImages) {
-        img.dispose();
-      }
+    } finally {
+      _isProcessingQueue = false;
     }
-    _isProcessingQueue = false;
   }
 
   void _updateControls(ControlScheme scheme) {
@@ -262,7 +294,9 @@ class _BMRenderViewState extends State<BMRenderView>
       widget.onButton?.call(id, false);
     }
 
-    _recalculateHits(activateOnly: true);
+    // A layout swap can invalidate active hit targets even when no pointer has
+    // moved, so reconcile the full set rather than only newly hit targets.
+    _recalculateHits();
 
     if (mounted) setState(() {});
   }
@@ -380,20 +414,21 @@ class _BMRenderViewState extends State<BMRenderView>
     }
   }
 
-  void _recalculateHits({bool activateOnly = false}) {
+  void _recalculateHits() {
     bool needsRepaint = false;
 
     for (final target in _hitTargets) {
-      if (target.isDisabled()) continue; // hidden controls are not pressable
       Offset? hitPoint;
-      for (final pos in _pointerPositions.values) {
-        if (target.hitTest(pos)) {
-          hitPoint = pos;
-          break;
+      // Hidden controls are not pressable, and one that becomes hidden while
+      // held has to be released rather than left active.
+      if (!target.isDisabled()) {
+        for (final pos in _pointerPositions.values) {
+          if (target.hitTest(pos)) {
+            hitPoint = pos;
+            break;
+          }
         }
       }
-
-      if (activateOnly && hitPoint == null) continue;
 
       if (target.handleHit(hitPoint)) needsRepaint = true;
     }

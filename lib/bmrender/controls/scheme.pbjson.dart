@@ -55,6 +55,13 @@ const ControlScheme$json = {
       '6': '.controls.ContextMenuOption',
       '10': 'options'
     },
+    {
+      '1': 'changed_resources',
+      '3': 10,
+      '4': 3,
+      '5': 5,
+      '10': 'changedResources'
+    },
   ],
 };
 
@@ -66,7 +73,8 @@ final $typed_data.Uint8List controlSchemeDescriptor = $convert.base64Decode(
     'QKBXdpZHRoGAUgASgFUgV3aWR0aBIWCgZoZWlnaHQYBiABKAVSBmhlaWdodBIzCglyZXNvdXJj'
     'ZXMYByADKAsyFS5jb250cm9scy5BcHBSZXNvdXJjZVIJcmVzb3VyY2VzEkAKD2Rpc3BsYXlfb2'
     'JqZWN0cxgIIAMoCzIXLmNvbnRyb2xzLkRpc3BsYXlPYmplY3RSDmRpc3BsYXlPYmplY3RzEjUK'
-    'B29wdGlvbnMYCSADKAsyGy5jb250cm9scy5Db250ZXh0TWVudU9wdGlvblIHb3B0aW9ucw==');
+    'B29wdGlvbnMYCSADKAsyGy5jb250cm9scy5Db250ZXh0TWVudU9wdGlvblIHb3B0aW9ucxIrCh'
+    'FjaGFuZ2VkX3Jlc291cmNlcxgKIAMoBVIQY2hhbmdlZFJlc291cmNlcw==');
 
 @$core.Deprecated('Use appResourceDescriptor instead')
 const AppResource$json = {
