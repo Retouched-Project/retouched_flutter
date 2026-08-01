@@ -159,8 +159,7 @@ class BmEvent {
 
   Map? get _peerCore => (raw['record'] as Map?)?['core'] as Map?;
   String get peerDeviceId => (_peerCore?['device_id'] as String?) ?? '';
-  int get peerUnreliablePort =>
-      ((_peerCore?['address'] as Map?)?['unreliable_port'] as int?) ?? 0;
+  int get peerUnreliablePort => (raw['udp_port'] as int?) ?? 0;
   bool get success => (raw['success'] as bool?) ?? false;
   String? get domain => raw['domain'] as String?;
 
