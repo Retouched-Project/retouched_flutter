@@ -2,6 +2,7 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
@@ -113,32 +114,36 @@ class _LogsPageState extends State<LogsPage> {
           if (entries.isEmpty) {
             return const Center(child: Text('No logs yet'));
           }
-          return ListView.builder(
-            controller: _scroll,
-            padding: const EdgeInsets.all(8),
-            itemCount: entries.length,
-            itemBuilder: (context, i) {
-              final e = entries[i];
-              return SelectableText.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '[${e.level}] ',
-                      style: TextStyle(
-                        color: _colors[e.level] ?? Colors.white70,
-                        fontWeight: FontWeight.bold,
+          final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+          return SelectionArea(
+            child: ListView.builder(
+              controller: _scroll,
+              padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + bottomInset),
+              scrollCacheExtent: const ScrollCacheExtent.viewport(3),
+              itemCount: entries.length,
+              itemBuilder: (context, i) {
+                final e = entries[i];
+                return Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '[${e.level}] ',
+                        style: TextStyle(
+                          color: _colors[e.level] ?? Colors.white70,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: '${e.source}: ',
-                      style: const TextStyle(color: Colors.white38),
-                    ),
-                    TextSpan(text: e.message),
-                  ],
-                ),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-              );
-            },
+                      TextSpan(
+                        text: '${e.source}: ',
+                        style: const TextStyle(color: Colors.white38),
+                      ),
+                      TextSpan(text: e.message),
+                    ],
+                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                );
+              },
+            ),
           );
         },
       ),
