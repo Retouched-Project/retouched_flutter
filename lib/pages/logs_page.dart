@@ -18,6 +18,21 @@ class LogsPage extends StatefulWidget {
 class _LogsPageState extends State<LogsPage> {
   final ScrollController _scroll = ScrollController();
   Level _level = logLevel;
+  bool _stickToBottom = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    // Follow the tail only while the reader is already there, so scrolling back
+    // to look at something is not undone by the next batch.
+    final position = _scroll.position;
+    _stickToBottom = position.maxScrollExtent - position.pixels < 40;
+  }
 
   static const Map<String, Color> _colors = {
     'Error': Color(0xFFFF5555),
@@ -91,7 +106,7 @@ class _LogsPageState extends State<LogsPage> {
         builder: (context, _) {
           final entries = LogStore.instance.entries;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_scroll.hasClients) {
+            if (_stickToBottom && _scroll.hasClients) {
               _scroll.jumpTo(_scroll.position.maxScrollExtent);
             }
           });
