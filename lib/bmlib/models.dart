@@ -131,12 +131,19 @@ class BmOutgoing {
   final String targetDeviceId;
   final int channel;
   final int reliability;
+
+  /// Whether this goes out as a datagram. Not a hint: a peer that cannot take
+  /// datagrams asks for reliable delivery instead via setReliabilityForTouch.
+  final bool prefersDatagram;
+
+  /// The message, with no length in front.
   final Uint8List payload;
 
   const BmOutgoing(
     this.targetDeviceId,
     this.channel,
     this.reliability,
+    this.prefersDatagram,
     this.payload,
   );
 
@@ -144,6 +151,7 @@ class BmOutgoing {
     (m['target_device_id'] as String?) ?? '',
     (m['channel'] as int?) ?? 0,
     (m['reliability'] as int?) ?? 0,
+    (m['prefers_datagram'] as bool?) ?? false,
     _bytes(m['payload']),
   );
 }

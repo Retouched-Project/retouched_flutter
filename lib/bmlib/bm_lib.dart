@@ -87,24 +87,6 @@ class BmLib {
         )
       >('bm_engine_process_incoming');
 
-  late final _processIncomingUdp = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_engine_process_incoming_udp');
-
   late final _emit = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -128,6 +110,63 @@ class BmLib {
         ffi.Bool Function(ffi.Pointer<ffi.Uint8>, ffi.IntPtr),
         bool Function(ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_handshake');
+
+  late final _framerNew = _lib
+      .lookupFunction<
+        ffi.Pointer<ffi.Void> Function(ffi.IntPtr),
+        ffi.Pointer<ffi.Void> Function(int)
+      >('bm_framer_new');
+
+  late final _framerFree = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_framer_free');
+
+  late final _framerFeed = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_framer_feed');
+
+  late final _framerReset = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_framer_reset');
+
+  late final _frame = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_frame');
+
+  late final _maxMessageLen = _lib
+      .lookupFunction<ffi.IntPtr Function(), int Function()>(
+        'bm_max_message_len',
+      );
 
   late final _assemblerNew = _lib
       .lookupFunction<
@@ -244,6 +283,17 @@ class BmLib {
 
   BmSchemeAssembler createSchemeAssembler() =>
       BmSchemeAssembler._(this, _assemblerNew());
+
+  /// Rejects messages longer than [maxLen], or the library ceiling by default.
+  BmFramer createFramer({int? maxLen}) =>
+      BmFramer._(this, _framerNew(maxLen ?? _maxMessageLen()));
+
+  int get maxMessageLen => _maxMessageLen();
+
+  /// Adds the length prefix a stream transport needs. Datagrams send the
+  /// message as it is.
+  Uint8List frame(Uint8List message) =>
+      _callOut(message, (ptr, len, op, ol) => _frame(ptr, len, op, ol));
 
   bool configureLogging(int level, int capacity) =>
       _logConfigure(level, capacity);
@@ -410,17 +460,6 @@ class BmLib {
     final out = _callOut(
       data,
       (ptr, len, op, ol) => _processIncoming(engine, ptr, len, op, ol),
-    );
-    return _decodeProcessOutput(out);
-  }
-
-  BmProcessOutput processIncomingUdp(
-    ffi.Pointer<ffi.Void> engine,
-    Uint8List data,
-  ) {
-    final out = _callOut(
-      data,
-      (ptr, len, op, ol) => _processIncomingUdp(engine, ptr, len, op, ol),
     );
     return _decodeProcessOutput(out);
   }
@@ -641,6 +680,53 @@ class BmSchemeOffer {
 
   bool get isUpdated => kind == 2;
   bool get isNotScheme => kind == 0;
+}
+
+/// Raised when a stream can no longer be split into messages.
+class BmFramingException implements Exception {
+  final String message;
+  const BmFramingException(this.message);
+  @override
+  String toString() => 'BmFramingException: $message';
+}
+
+/// Reassembles messages from a stream that arrives in arbitrary pieces.
+class BmFramer {
+  final BmLib _lib;
+  ffi.Pointer<ffi.Void> _ptr;
+
+  BmFramer._(this._lib, this._ptr);
+
+  /// Adds bytes and returns every message they completed, which is often none
+  /// while one is still arriving. Throws [BmFramingException] when the stream
+  /// is out of step, since there is no way to find the next boundary again.
+  List<Uint8List> feed(List<int> data) {
+    if (_ptr == ffi.nullptr) return const [];
+    final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+    final out = _lib._callOut(
+      bytes,
+      (ptr, len, op, ol) => _lib._framerFeed(_ptr, ptr, len, op, ol),
+    );
+    // A successful call always encodes at least an empty list, so nothing at
+    // all came back means the call itself failed.
+    if (out.isEmpty) {
+      throw const BmFramingException('framer rejected the stream');
+    }
+    final decoded = mp.deserialize(out) as List;
+    return decoded.map((m) => Uint8List.fromList(List<int>.from(m))).toList();
+  }
+
+  /// Drops anything half read, for when a connection restarts.
+  void reset() {
+    if (_ptr != ffi.nullptr) _lib._framerReset(_ptr);
+  }
+
+  void dispose() {
+    if (_ptr != ffi.nullptr) {
+      _lib._framerFree(_ptr);
+      _ptr = ffi.nullptr;
+    }
+  }
 }
 
 class BmSchemeAssembler {

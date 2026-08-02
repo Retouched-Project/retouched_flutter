@@ -43,7 +43,7 @@ extension GameClientSession on GameClient {
     _gameSub = null;
     await _gameSocket?.close();
     _gameSocket = null;
-    _gameFramer.clear();
+    _gameFramer.reset();
   }
 
   Future<void> _bindGameListeners() async {
@@ -94,7 +94,7 @@ extension GameClientSession on GameClient {
       final staleSub = _gameSub;
       final staleSocket = _gameSocket;
       _gameSub = null;
-      _gameFramer.clear();
+      _gameFramer.reset();
       _policyBuffer.clear();
       _isHandlingPolicy = false;
       _policySniffArmed = true;
@@ -173,7 +173,7 @@ extension GameClientSession on GameClient {
     _gameSub = null;
     await _gameSocket?.close();
     _gameSocket = null;
-    _gameFramer.clear();
+    _gameFramer.reset();
     _forgetGameSession();
     if (!_schemeC.isClosed) {
       _schemeC.add(null);

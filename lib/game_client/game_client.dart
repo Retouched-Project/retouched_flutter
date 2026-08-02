@@ -13,7 +13,6 @@ import '../bmlib/bm_lib.dart';
 import '../bmrender/controls/scheme.pb.dart';
 import '../bmrender/controls/scheme_extensions.dart';
 import '../bmrender/controls/touch_enums.dart' show ControlTouchPoint;
-import '../core/message_framer.dart';
 import '../features/sensor_processor.dart';
 import '../features/touch_processor.dart';
 import '../features/registry_client.dart';
@@ -68,10 +67,12 @@ class GameClient {
 
   Socket? _socket;
   StreamSubscription<List<int>>? _sub;
-  final _registryFramer = MessageFramer();
+  BmFramer? _registryFramerInst;
+  BmFramer get _registryFramer => _registryFramerInst ??= _lib.createFramer();
   Socket? _gameSocket;
   StreamSubscription<List<int>>? _gameSub;
-  final _gameFramer = MessageFramer();
+  BmFramer? _gameFramerInst;
+  BmFramer get _gameFramer => _gameFramerInst ??= _lib.createFramer();
   ServerSocket? _gameServer;
   RawDatagramSocket? _udpSocket;
   StreamSubscription<RawSocketEvent>? _udpSub;

@@ -148,8 +148,10 @@ extension GameClientConnection on GameClient {
     _gameServer = null;
     _sensors.stopAll();
     _touch.cancel();
-    _registryFramer.clear();
-    _gameFramer.clear();
+    _registryFramerInst?.dispose();
+    _registryFramerInst = null;
+    _gameFramerInst?.dispose();
+    _gameFramerInst = null;
     if (_engine != null) {
       _lib.freeEngine(_engine!);
       _engine = null;
@@ -205,7 +207,14 @@ extension GameClientConnection on GameClient {
   }
 
   void _onData(List<int> data) {
-    final frames = _registryFramer.feed(data);
+    final List<Uint8List> frames;
+    try {
+      frames = _registryFramer.feed(data);
+    } on BmFramingException catch (e) {
+      _log.severe('Registry stream out of step: $e');
+      _onDone();
+      return;
+    }
     for (final frame in frames) {
       _handleOutput(_lib.processIncoming(_engine!, frame));
     }
@@ -215,13 +224,21 @@ extension GameClientConnection on GameClient {
     if (event != RawSocketEvent.read) return;
     final dg = _udpSocket?.receive();
     if (dg == null) return;
-    _handleOutput(_lib.processIncomingUdp(_engine!, dg.data));
+    // A datagram is already one whole message, so it needs no framer.
+    _handleOutput(_lib.processIncoming(_engine!, dg.data));
   }
 
   void _onGameData(List<int> data) {
     final payload = _filterPolicyRequest(data);
     if (payload == null) return;
-    final frames = _gameFramer.feed(payload);
+    final List<Uint8List> frames;
+    try {
+      frames = _gameFramer.feed(payload);
+    } on BmFramingException catch (e) {
+      _log.severe('Game stream out of step: $e');
+      _onGameDone();
+      return;
+    }
     for (final frame in frames) {
       _handleOutput(_lib.processIncoming(_engine!, frame));
     }
@@ -250,7 +267,7 @@ extension GameClientConnection on GameClient {
       final sub = _gameSub;
       _gameSub = null;
       _gameSocket = null;
-      _gameFramer.clear();
+      _gameFramer.reset();
       if (sub != null) unawaited(sub.cancel());
       return;
     }
@@ -271,7 +288,7 @@ extension GameClientConnection on GameClient {
     final sub = _gameSub;
     _gameSub = null;
     _gameSocket = null;
-    _gameFramer.clear();
+    _gameFramer.reset();
     if (sub != null) unawaited(sub.cancel());
   }
 }

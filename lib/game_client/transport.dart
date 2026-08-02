@@ -7,15 +7,15 @@ extension GameClientTransport on GameClient {
   void _sendOutgoings(List<BmOutgoing> outgoings) {
     for (final outgoing in outgoings) {
       final game = _activeGame;
-      if (outgoing.reliability == 0 &&
+      if (outgoing.prefersDatagram &&
           game != null &&
-          game.unreliablePort != 0 &&
-          outgoing.targetDeviceId == game.deviceId &&
-          _udpSocket != null) {
-        _sendUdp(outgoing.payload.sublist(4));
+          outgoing.targetDeviceId == game.deviceId) {
+        // A datagram carries the message as it is.
+        _sendUdp(outgoing.payload);
       } else {
+        // A stream needs the length in front.
         final socket = _resolveSocket(outgoing.targetDeviceId);
-        socket?.add(outgoing.payload);
+        socket?.add(_lib.frame(outgoing.payload));
       }
     }
   }
@@ -56,7 +56,7 @@ extension GameClientTransport on GameClient {
 
     _policySniffArmed = false;
     _policyBuffer.clear();
-    _gameFramer.clear();
+    _gameFramer.reset();
     _isHandlingPolicy = true;
     final socket = _gameSocket;
     if (socket != null) {
