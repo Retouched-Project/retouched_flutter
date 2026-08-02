@@ -10,6 +10,10 @@ extension GameClientSession on GameClient {
     _touchEnabled = null;
     _lastControlConfig = null;
     _gameHandshakeHandled = false;
+    _lastProgress = null;
+    if (!_progressC.isClosed) {
+      _progressC.add(0.0);
+    }
     _sensors.reset();
     _touch.reset();
   }
