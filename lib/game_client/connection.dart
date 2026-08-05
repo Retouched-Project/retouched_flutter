@@ -57,10 +57,6 @@ extension GameClientConnection on GameClient {
 
       await _bindGameListeners();
 
-      final ver = _lib.handshakeBytes();
-      _socket!.add(ver);
-      await _socket!.flush();
-
       await _sendRegistration(localHost);
       await _waitForRegister(timeout: timeout);
 
@@ -152,6 +148,10 @@ extension GameClientConnection on GameClient {
     _registryFramerInst = null;
     _gameFramerInst?.dispose();
     _gameFramerInst = null;
+    _registryHandshakerInst?.dispose();
+    _registryHandshakerInst = null;
+    _gameHandshakerInst?.dispose();
+    _gameHandshakerInst = null;
     if (_engine != null) {
       _lib.freeEngine(_engine!);
       _engine = null;
@@ -216,7 +216,23 @@ extension GameClientConnection on GameClient {
       return;
     }
     for (final frame in frames) {
-      _handleOutput(_lib.processIncoming(_engine!, frame));
+      final outcome = _registryHandshaker.onMessage(frame);
+      if (outcome.passthrough) {
+        _handleOutput(_lib.processIncoming(_engine!, frame));
+        continue;
+      }
+      _answerHandshake(outcome, _socket, 'Registry');
+    }
+  }
+
+  /// A responder answers the version exchange and never opens it.
+  void _answerHandshake(HandshakeOutcome outcome, Socket? socket, String who) {
+    final reply = outcome.reply;
+    if (reply != null && socket != null) {
+      socket.add(_lib.frame(reply));
+    }
+    if (!outcome.compatible) {
+      _log.severe('$who version is not compatible: ${outcome.check}');
     }
   }
 
@@ -240,7 +256,16 @@ extension GameClientConnection on GameClient {
       return;
     }
     for (final frame in frames) {
-      _handleOutput(_lib.processIncoming(_engine!, frame));
+      final outcome = _gameHandshaker.onMessage(frame);
+      if (outcome.passthrough) {
+        _handleOutput(_lib.processIncoming(_engine!, frame));
+        continue;
+      }
+      _answerHandshake(outcome, _gameSocket, 'Game');
+      if (outcome.compatible && !_gameHandshakeHandled) {
+        _gameHandshakeHandled = true;
+        _doGameInitSequence();
+      }
     }
   }
 
@@ -268,6 +293,7 @@ extension GameClientConnection on GameClient {
       _gameSub = null;
       _gameSocket = null;
       _gameFramer.reset();
+      _gameHandshakerInst?.reset();
       if (sub != null) unawaited(sub.cancel());
       return;
     }
@@ -289,6 +315,7 @@ extension GameClientConnection on GameClient {
     _gameSub = null;
     _gameSocket = null;
     _gameFramer.reset();
+    _gameHandshakerInst?.reset();
     if (sub != null) unawaited(sub.cancel());
   }
 }

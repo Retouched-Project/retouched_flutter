@@ -48,6 +48,7 @@ extension GameClientSession on GameClient {
     await _gameSocket?.close();
     _gameSocket = null;
     _gameFramer.reset();
+    _gameHandshakerInst?.reset();
   }
 
   Future<void> _bindGameListeners() async {
@@ -99,6 +100,7 @@ extension GameClientSession on GameClient {
       final staleSocket = _gameSocket;
       _gameSub = null;
       _gameFramer.reset();
+      _gameHandshakerInst?.reset();
       _policyBuffer.clear();
       _isHandlingPolicy = false;
       _policySniffArmed = true;
@@ -120,7 +122,6 @@ extension GameClientSession on GameClient {
     final socket = _gameSocket;
     final game = _activeGame;
     if (socket == null || game == null || _deviceId == null) return;
-    await _sendHandshakeToGame(socket);
     final caps = await _capabilities.get();
     if (_activeGame == null) return;
     final capActions = _lib.makeSetCapabilities(_engine!, game.deviceId, caps);
@@ -132,12 +133,6 @@ extension GameClientSession on GameClient {
       _screenHeight,
     );
     _sendOutgoings(xmlActions);
-  }
-
-  Future<void> _sendHandshakeToGame(Socket socket) async {
-    final ver = _lib.handshakeBytes();
-    socket.add(ver);
-    await socket.flush();
   }
 
   void sendPause() {
@@ -178,6 +173,7 @@ extension GameClientSession on GameClient {
     await _gameSocket?.close();
     _gameSocket = null;
     _gameFramer.reset();
+    _gameHandshakerInst?.reset();
     _forgetGameSession();
     if (!_schemeC.isClosed) {
       _schemeC.add(null);

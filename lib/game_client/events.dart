@@ -13,9 +13,6 @@ extension GameClientEvents on GameClient {
 
   void _handleEvent(BmEvent event) {
     switch (event.type) {
-      case 'Handshake':
-        _handleHandshake(event);
-        break;
       case 'RegistrationResult':
         _registry.onRegistrationResult();
         break;
@@ -53,16 +50,6 @@ extension GameClientEvents on GameClient {
       default:
         _log.finest('Unhandled event: ${event.type}');
         break;
-    }
-  }
-
-  void _handleHandshake(BmEvent event) {
-    _log.fine(
-      'Handshake event received: current=${event.current}, minimum=${event.minimum}',
-    );
-    if (_activeGame != null && !_gameHandshakeHandled) {
-      _gameHandshakeHandled = true;
-      _doGameInitSequence();
     }
   }
 

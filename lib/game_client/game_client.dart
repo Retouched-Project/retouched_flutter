@@ -67,6 +67,14 @@ class GameClient {
 
   Socket? _socket;
   StreamSubscription<List<int>>? _sub;
+  BmHandshaker? _registryHandshakerInst;
+  BmHandshaker get _registryHandshaker =>
+      _registryHandshakerInst ??= _lib.createHandshaker(LinkRole.responder);
+
+  BmHandshaker? _gameHandshakerInst;
+  BmHandshaker get _gameHandshaker =>
+      _gameHandshakerInst ??= _lib.createHandshaker(LinkRole.responder);
+
   BmFramer? _registryFramerInst;
   BmFramer get _registryFramer => _registryFramerInst ??= _lib.createFramer();
   Socket? _gameSocket;

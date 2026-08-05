@@ -57,6 +57,7 @@ extension GameClientTransport on GameClient {
     _policySniffArmed = false;
     _policyBuffer.clear();
     _gameFramer.reset();
+    _gameHandshakerInst?.reset();
     _isHandlingPolicy = true;
     final socket = _gameSocket;
     if (socket != null) {

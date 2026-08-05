@@ -141,6 +141,56 @@ class BmLib {
         )
       >('bm_framer_feed');
 
+  late final _handshakerNew = _lib
+      .lookupFunction<
+        ffi.Pointer<ffi.Void> Function(ffi.Int32),
+        ffi.Pointer<ffi.Void> Function(int)
+      >('bm_handshaker_new');
+
+  late final _handshakerFree = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_handshaker_free');
+
+  late final _handshakerOnConnect = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_handshaker_on_connect');
+
+  late final _handshakerOnMessage = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_handshaker_on_message');
+
+  late final _handshakerReset = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_handshaker_reset');
+
   late final _framerReset = _lib
       .lookupFunction<
         ffi.Void Function(ffi.Pointer<ffi.Void>),
@@ -283,6 +333,11 @@ class BmLib {
 
   BmSchemeAssembler createSchemeAssembler() =>
       BmSchemeAssembler._(this, _assemblerNew());
+
+  /// Tracks the version exchange for one connection. A controller waits for
+  /// the other side and answers, so [LinkRole.responder] is the usual choice.
+  BmHandshaker createHandshaker(LinkRole role) =>
+      BmHandshaker._(this, _handshakerNew(role.code));
 
   /// Rejects messages longer than [maxLen], or the library ceiling by default.
   BmFramer createFramer({int? maxLen}) =>
@@ -682,12 +737,104 @@ class BmSchemeOffer {
   bool get isNotScheme => kind == 0;
 }
 
+/// Which side of a connection speaks first.
+enum LinkRole {
+  /// Announces itself as soon as the connection is up.
+  initiator(0),
+
+  /// Waits for the other side, then answers.
+  responder(1);
+
+  const LinkRole(this.code);
+  final int code;
+}
+
+/// How the two versions compare.
+enum VersionCheck { compatible, localTooOld, remoteTooOld, unknown }
+
+/// The result of offering one message to a [BmHandshaker].
+class HandshakeOutcome {
+  /// True when this was not a version exchange, so it belongs to the engine.
+  final bool passthrough;
+
+  /// Bytes to send back, when an answer is owed.
+  final Uint8List? reply;
+  final VersionCheck check;
+
+  const HandshakeOutcome._(this.passthrough, this.reply, this.check);
+
+  static const passthroughResult = HandshakeOutcome._(
+    true,
+    null,
+    VersionCheck.compatible,
+  );
+
+  bool get compatible => check == VersionCheck.compatible;
+}
+
 /// Raised when a stream can no longer be split into messages.
 class BmFramingException implements Exception {
   final String message;
   const BmFramingException(this.message);
   @override
   String toString() => 'BmFramingException: $message';
+}
+
+/// Tracks the version exchange for one connection.
+class BmHandshaker {
+  final BmLib _lib;
+  ffi.Pointer<ffi.Void> _ptr;
+
+  BmHandshaker._(this._lib, this._ptr);
+
+  /// What to send now the connection is up. A responder sends nothing.
+  Uint8List? onConnect() {
+    if (_ptr == ffi.nullptr) return null;
+    final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final ok = _lib._handshakerOnConnect(_ptr, outPtr, outLen);
+    final bytes = _lib._readOut(ok, outPtr, outLen);
+    calloc.free(outPtr);
+    calloc.free(outLen);
+    return bytes.isEmpty ? null : bytes;
+  }
+
+  /// Offers one message. A passthrough result belongs to the engine.
+  HandshakeOutcome onMessage(Uint8List message) {
+    if (_ptr == ffi.nullptr) return HandshakeOutcome.passthroughResult;
+    final out = _lib._callOut(
+      message,
+      (ptr, len, op, ol) => _lib._handshakerOnMessage(_ptr, ptr, len, op, ol),
+    );
+    if (out.isEmpty) return HandshakeOutcome.passthroughResult;
+    final decoded = mp.deserialize(out) as Map;
+    if (decoded['type'] != 'Received')
+      return HandshakeOutcome.passthroughResult;
+    final reply = decoded['reply'];
+    return HandshakeOutcome._(
+      false,
+      reply == null ? null : Uint8List.fromList(List<int>.from(reply)),
+      switch (decoded['check']) {
+        'Compatible' => VersionCheck.compatible,
+        'LocalTooOld' => VersionCheck.localTooOld,
+        'RemoteTooOld' => VersionCheck.remoteTooOld,
+        _ => VersionCheck.unknown,
+      },
+    );
+  }
+
+  /// Forgets the exchange so a reconnect starts over. A handshaker that still
+  /// thinks it has spoken will never answer the next connection.
+  void reset() {
+    if (_ptr != ffi.nullptr) _lib._handshakerReset(_ptr);
+  }
+
+  void dispose() {
+    if (_ptr != ffi.nullptr) {
+      _lib._handshakerFree(_ptr);
+      _ptr = ffi.nullptr;
+    }
+  }
 }
 
 /// Reassembles messages from a stream that arrives in arbitrary pieces.
