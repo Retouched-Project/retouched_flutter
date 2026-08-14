@@ -104,9 +104,8 @@ class TouchProcessor {
     final actions = _lib.makeTouchSet(getEngine!(), gameDeviceId, points);
     sendActions?.call(actions);
 
-    // Only unreliable (UDP) touches need resending to survive packet loss; the
-    // engine resolves the reliability, so derive the retry need from it.
-    final unreliable = actions.any((a) => a.reliability == 0);
+    // Only touches that went out as datagrams need resending to survive loss.
+    final unreliable = actions.any((a) => a.prefersDatagram);
     if (retryCount < 3 &&
         unreliable &&
         _touchFlushTimer == null &&
