@@ -61,25 +61,28 @@ extension GameClientSession on GameClient {
         );
         _policyServer!.listen((socket) {
           socket.setOption(SocketOption.tcpNoDelay, true);
-          List<int> buffer = [];
+          // Nothing but policy requests reach this port, but a request can
+          // still arrive in pieces, so the sniffer decides when it is whole.
+          final sniffer = _lib.createPolicySniffer();
           StreamSubscription? sub;
           sub = socket.listen(
             (data) {
-              buffer.addAll(data);
-              if (buffer.length >= 23) {
-                socket.add(_policyResponseBytes);
-                socket.flush().then((_) {
-                  sub?.cancel();
-                  socket.close().catchError((_) {});
-                });
-              }
+              if (sniffer.feed(data).kind != PolicySniffKind.answer) return;
+              socket.add(_lib.policyResponse);
+              socket.flush().then((_) {
+                sub?.cancel();
+                sniffer.dispose();
+                socket.close().catchError((_) {});
+              });
             },
             onError: (e) {
               sub?.cancel();
+              sniffer.dispose();
               socket.destroy();
             },
             onDone: () {
               sub?.cancel();
+              sniffer.dispose();
               socket.destroy();
             },
           );
@@ -101,9 +104,8 @@ extension GameClientSession on GameClient {
       _gameSub = null;
       _gameFramer.reset();
       _gameHandshakerInst?.reset();
-      _policyBuffer.clear();
-      _isHandlingPolicy = false;
-      _policySniffArmed = true;
+      // Every connection is watched from its first byte, and only there.
+      _gamePolicySniffer.reset();
       if (staleSub != null) unawaited(staleSub.cancel());
       if (staleSocket != null) unawaited(staleSocket.close());
       socket.setOption(SocketOption.tcpNoDelay, true);

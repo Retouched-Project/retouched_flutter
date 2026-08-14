@@ -34,14 +34,6 @@ const int serverPort = 8088;
 const String serverDeviceId = 'server';
 const String serverDeviceName = 'Registry';
 
-final Uint8List _policyRequestBytes = Uint8List.fromList(
-  '<policy-file-request/>\u0000'.codeUnits,
-);
-final Uint8List _policyResponseBytes = Uint8List.fromList(
-  '<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="1008-49151" /></cross-domain-policy>\u0000'
-      .codeUnits,
-);
-
 void _safeComplete(Completer<void>? completer) {
   if (completer != null && !completer.isCompleted) {
     completer.complete();
@@ -150,9 +142,9 @@ class GameClient {
   late final RegistryClient _registry;
   late final Capabilities _capabilities;
   ServerSocket? _policyServer;
-  bool _isHandlingPolicy = false;
-  bool _policySniffArmed = false;
-  final List<int> _policyBuffer = [];
+  BmPolicySniffer? _gamePolicySnifferInst;
+  BmPolicySniffer get _gamePolicySniffer =>
+      _gamePolicySnifferInst ??= _lib.createPolicySniffer();
 
   Stream<List<String>> get gamesStream => _gamesC.stream;
   List<String> get games => _registry.games;

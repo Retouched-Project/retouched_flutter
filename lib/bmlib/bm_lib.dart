@@ -197,6 +197,66 @@ class BmLib {
         void Function(ffi.Pointer<ffi.Void>)
       >('bm_framer_reset');
 
+  late final _policyResponse = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_policy_response');
+
+  late final _policySnifferNew = _lib
+      .lookupFunction<
+        ffi.Pointer<ffi.Void> Function(),
+        ffi.Pointer<ffi.Void> Function()
+      >('bm_policy_sniffer_new');
+
+  late final _policySnifferFree = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_policy_sniffer_free');
+
+  late final _policySnifferFeed = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_policy_sniffer_feed');
+
+  late final _policySnifferIsWatching = _lib
+      .lookupFunction<
+        ffi.Bool Function(ffi.Pointer<ffi.Void>),
+        bool Function(ffi.Pointer<ffi.Void>)
+      >('bm_policy_sniffer_is_watching');
+
+  late final _policySnifferHungUp = _lib
+      .lookupFunction<
+        ffi.Bool Function(ffi.Pointer<ffi.Void>),
+        bool Function(ffi.Pointer<ffi.Void>)
+      >('bm_policy_sniffer_hung_up');
+
+  late final _policySnifferReset = _lib
+      .lookupFunction<
+        ffi.Void Function(ffi.Pointer<ffi.Void>),
+        void Function(ffi.Pointer<ffi.Void>)
+      >('bm_policy_sniffer_reset');
+
   late final _frame = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -343,6 +403,11 @@ class BmLib {
   BmFramer createFramer({int? maxLen}) =>
       BmFramer._(this, _framerNew(maxLen ?? _maxMessageLen()));
 
+  BmPolicySniffer createPolicySniffer() =>
+      BmPolicySniffer._(this, _policySnifferNew());
+
+  late final Uint8List policyResponse = _readOutOnly(_policyResponse);
+
   int get maxMessageLen => _maxMessageLen();
 
   /// Adds the length prefix a stream transport needs. Datagrams send the
@@ -372,6 +437,11 @@ class BmLib {
   String _readIdString(
     bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.IntPtr>)
     call,
+  ) => String.fromCharCodes(_readOutOnly(call));
+
+  Uint8List _readOutOnly(
+    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.IntPtr>)
+    call,
   ) {
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
     final outLen = calloc<ffi.IntPtr>();
@@ -379,7 +449,7 @@ class BmLib {
     final bytes = _readOut(ok, outPtr, outLen);
     calloc.free(outPtr);
     calloc.free(outLen);
-    return String.fromCharCodes(bytes);
+    return bytes;
   }
 
   Uint8List _readOut(
@@ -832,6 +902,66 @@ class BmHandshaker {
   void dispose() {
     if (_ptr != ffi.nullptr) {
       _lib._handshakerFree(_ptr);
+      _ptr = ffi.nullptr;
+    }
+  }
+}
+
+enum PolicySniffKind { wait, answer, passthrough }
+
+class PolicySniff {
+  final PolicySniffKind kind;
+  final Uint8List? data;
+  const PolicySniff._(this.kind, this.data);
+  static const waitResult = PolicySniff._(PolicySniffKind.wait, null);
+}
+
+class BmPolicySniffer {
+  final BmLib _lib;
+  ffi.Pointer<ffi.Void> _ptr;
+
+  BmPolicySniffer._(this._lib, this._ptr);
+
+  bool get isWatching =>
+      _ptr != ffi.nullptr && _lib._policySnifferIsWatching(_ptr);
+
+  bool hungUp() => _ptr != ffi.nullptr && _lib._policySnifferHungUp(_ptr);
+
+  PolicySniff feed(List<int> data) {
+    if (_ptr == ffi.nullptr) {
+      return PolicySniff._(
+        PolicySniffKind.passthrough,
+        data is Uint8List ? data : Uint8List.fromList(data),
+      );
+    }
+    final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+    final out = _lib._callOut(
+      bytes,
+      (ptr, len, op, ol) => _lib._policySnifferFeed(_ptr, ptr, len, op, ol),
+    );
+    if (out.isEmpty) return PolicySniff.waitResult;
+    final decoded = mp.deserialize(out) as Map;
+    switch (decoded['type']) {
+      case 'Answer':
+        return const PolicySniff._(PolicySniffKind.answer, null);
+      case 'Passthrough':
+        return PolicySniff._(
+          PolicySniffKind.passthrough,
+          Uint8List.fromList(List<int>.from(decoded['data'] as List)),
+        );
+      default:
+        return PolicySniff.waitResult;
+    }
+  }
+
+  /// Starts over, so the next connection is watched from its first byte.
+  void reset() {
+    if (_ptr != ffi.nullptr) _lib._policySnifferReset(_ptr);
+  }
+
+  void dispose() {
+    if (_ptr != ffi.nullptr) {
+      _lib._policySnifferFree(_ptr);
       _ptr = ffi.nullptr;
     }
   }

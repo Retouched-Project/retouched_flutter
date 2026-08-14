@@ -152,6 +152,8 @@ extension GameClientConnection on GameClient {
     _registryHandshakerInst = null;
     _gameHandshakerInst?.dispose();
     _gameHandshakerInst = null;
+    _gamePolicySnifferInst?.dispose();
+    _gamePolicySnifferInst = null;
     if (_engine != null) {
       _lib.freeEngine(_engine!);
       _engine = null;
@@ -287,8 +289,7 @@ extension GameClientConnection on GameClient {
   }
 
   void _onGameDone() {
-    if (_isHandlingPolicy) {
-      _isHandlingPolicy = false;
+    if (_gamePolicySnifferInst?.hungUp() ?? false) {
       final sub = _gameSub;
       _gameSub = null;
       _gameSocket = null;
