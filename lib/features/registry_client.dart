@@ -38,14 +38,7 @@ class RegistryClient {
   }
 
   void _replaceGameInfos(List<BmRegistryInfo> infos) {
-    final filtered = infos
-        .where(
-          (i) =>
-              i.deviceType == DeviceTypeCodes.flash ||
-              i.deviceType == DeviceTypeCodes.unity,
-        )
-        .toList();
-    for (final g in filtered) {
+    for (final g in infos) {
       final engine = getEngine?.call();
       if (engine != null) {
         _lib.registerDevice(
@@ -59,22 +52,15 @@ class RegistryClient {
         );
       }
     }
-    gameInfos = filtered;
+    gameInfos = infos.toList(growable: false);
     games = gameInfos.map((g) => g.deviceName).toList(growable: false);
     onGamesChanged?.call(List.unmodifiable(games));
   }
 
   void _updateGameInfos(List<BmRegistryInfo> infos) {
-    final filtered = infos
-        .where(
-          (i) =>
-              i.deviceType == DeviceTypeCodes.flash ||
-              i.deviceType == DeviceTypeCodes.unity,
-        )
-        .toList();
-    if (filtered.isEmpty) return;
+    if (infos.isEmpty) return;
     final map = {for (final g in gameInfos) g.deviceId: g};
-    for (final g in filtered) {
+    for (final g in infos) {
       map[g.deviceId] = g;
       final engine = getEngine?.call();
       if (engine != null) {
