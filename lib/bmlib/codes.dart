@@ -12,14 +12,6 @@ class DeviceTypeCodes {
   static const int server = 7;
 }
 
-class TouchStateCodes {
-  static const int began = 1;
-  static const int moved = 2;
-  static const int stationary = 3;
-  static const int ended = 4;
-  static const int cancelled = 5;
-}
-
 class EndpointModeCodes {
   static const int none = 0;
   static const int game = 1;
