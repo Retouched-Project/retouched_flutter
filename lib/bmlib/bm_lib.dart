@@ -549,8 +549,8 @@ class BmLib {
   bool configureRoles(
     ffi.Pointer<ffi.Void> engine, {
     required bool server,
-    required int endpointMode,
-  }) => _configureRoles(engine, server, endpointMode);
+    EndpointMode? endpointMode,
+  }) => _configureRoles(engine, server, endpointMode?.code ?? 0);
 
   Map<String, dynamic> _deviceCoreWire(
     String id,
@@ -805,6 +805,15 @@ class BmSchemeOffer {
 
   bool get isUpdated => kind == 2;
   bool get isNotScheme => kind == 0;
+}
+
+/// Which side of a session this engine plays. A server on its own takes neither.
+enum EndpointMode {
+  game(1),
+  controller(2);
+
+  const EndpointMode(this.code);
+  final int code;
 }
 
 /// Which side of a connection speaks first.

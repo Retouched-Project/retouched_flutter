@@ -11,9 +11,3 @@ class DeviceTypeCodes {
   static const int palm = 6;
   static const int server = 7;
 }
-
-class EndpointModeCodes {
-  static const int none = 0;
-  static const int game = 1;
-  static const int controller = 2;
-}

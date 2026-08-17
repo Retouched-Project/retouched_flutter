@@ -42,7 +42,7 @@ extension GameClientConnection on GameClient {
       _lib.configureRoles(
         _engine!,
         server: false,
-        endpointMode: EndpointModeCodes.controller,
+        endpointMode: EndpointMode.controller,
       );
 
       _lib.registerDevice(
