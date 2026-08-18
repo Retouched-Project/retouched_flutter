@@ -63,11 +63,15 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_register_device');
 
-  late final _configureRoles = _lib
+  late final _configure = _lib
       .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Bool, ffi.Int32),
-        bool Function(ffi.Pointer<ffi.Void>, bool, int)
-      >('bm_engine_configure_roles');
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
+        ),
+        bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
+      >('bm_engine_configure');
 
   late final _processIncoming = _lib
       .lookupFunction<
@@ -196,24 +200,6 @@ class BmLib {
         ffi.Void Function(ffi.Pointer<ffi.Void>),
         void Function(ffi.Pointer<ffi.Void>)
       >('bm_framer_reset');
-
-  late final _openSessionsAutomatically = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Bool,
-          ffi.Bool,
-          ffi.Int32,
-          ffi.Int32,
-        ),
-        bool Function(ffi.Pointer<ffi.Void>, bool, bool, int, int)
-      >('bm_engine_open_sessions_automatically');
-
-  late final _openSessionsManually = _lib
-      .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Void>),
-        bool Function(ffi.Pointer<ffi.Void>)
-      >('bm_engine_open_sessions_manually');
 
   late final _policyResponse = _lib
       .lookupFunction<
@@ -564,31 +550,36 @@ class BmLib {
     _callIn(core, (ptr, len) => _registerDevice(engine, ptr, len));
   }
 
-  bool configureRoles(
+  /// Everything the engine is told about itself. Pass the whole of it whenever
+  /// any of it changes; the engine holds nothing over from a previous call.
+  ///
+  /// A controller that opens its own sessions needs a screen, since it asks a
+  /// game for a scheme to fit it.
+  bool configure(
     ffi.Pointer<ffi.Void> engine, {
-    required bool server,
-    EndpointMode? endpointMode,
-  }) => _configureRoles(engine, server, endpointMode?.code ?? 0);
-
-  /// Hands the engine what this controller is, and lets it open sessions:
-  /// it says the right things in the right order once a game acknowledges.
-  bool openSessionsAutomatically(
-    ffi.Pointer<ffi.Void> engine, {
-    required bool gyroscope,
-    required bool orientation,
-    required int screenWidth,
-    required int screenHeight,
-  }) => _openSessionsAutomatically(
-    engine,
-    gyroscope,
-    orientation,
-    screenWidth,
-    screenHeight,
+    bool server = false,
+    EndpointMode? endpoint,
+    bool opensSessions = true,
+    bool gyroscope = false,
+    bool orientation = false,
+    int screenWidth = 0,
+    int screenHeight = 0,
+    bool approvesRegistrations = true,
+  }) => _callIn(
+    mp.serialize({
+      'server': server,
+      'endpoint': endpoint == null
+          ? null
+          : (endpoint == EndpointMode.game ? 'Game' : 'Controller'),
+      'opens_sessions': opensSessions,
+      'gyroscope': gyroscope,
+      'orientation': orientation,
+      'screen_width': screenWidth,
+      'screen_height': screenHeight,
+      'approves_registrations': approvesRegistrations,
+    }),
+    (ptr, len) => _configure(engine, ptr, len),
   );
-
-  /// Leaves session openings to the caller.
-  bool openSessionsManually(ffi.Pointer<ffi.Void> engine) =>
-      _openSessionsManually(engine);
 
   Map<String, dynamic> _deviceCoreWire(
     String id,
@@ -925,8 +916,9 @@ class BmHandshaker {
     );
     if (out.isEmpty) return HandshakeOutcome.passthroughResult;
     final decoded = mp.deserialize(out) as Map;
-    if (decoded['type'] != 'Received')
+    if (decoded['type'] != 'Received') {
       return HandshakeOutcome.passthroughResult;
+    }
     final reply = decoded['reply'];
     return HandshakeOutcome._(
       false,

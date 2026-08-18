@@ -40,11 +40,7 @@ extension GameClientConnection on GameClient {
         udpPort,
         clientPort,
       );
-      _lib.configureRoles(
-        _engine!,
-        server: false,
-        endpointMode: EndpointMode.controller,
-      );
+      _applySessionInputs(0);
 
       _lib.registerDevice(
         _engine!,
@@ -62,7 +58,6 @@ extension GameClientConnection on GameClient {
       await _waitForRegister(timeout: timeout);
 
       await requestList();
-      _applySessionInputs(0);
       _capabilities.get().then(_applySessionInputs);
     } catch (_) {
       await close();
@@ -75,8 +70,9 @@ extension GameClientConnection on GameClient {
   /// what is known and told again when the probe lands.
   void _applySessionInputs(int capabilities) {
     if (_engine == null) return;
-    _lib.openSessionsAutomatically(
+    _lib.configure(
       _engine!,
+      endpoint: EndpointMode.controller,
       gyroscope: (capabilities & 1) != 0,
       orientation: (capabilities & 2) != 0,
       screenWidth: _screenWidth,
