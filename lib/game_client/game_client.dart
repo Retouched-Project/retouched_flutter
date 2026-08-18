@@ -126,7 +126,6 @@ class GameClient {
   BmRegistryInfo? _activeGame;
   double? _lastProgress;
   bool _isPaused = false;
-  bool _gameHandshakeHandled = false;
   int _screenWidth = 480;
   int _screenHeight = 320;
 

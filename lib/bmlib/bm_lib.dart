@@ -197,6 +197,24 @@ class BmLib {
         void Function(ffi.Pointer<ffi.Void>)
       >('bm_framer_reset');
 
+  late final _openSessionsAutomatically = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Bool,
+          ffi.Bool,
+          ffi.Int32,
+          ffi.Int32,
+        ),
+        bool Function(ffi.Pointer<ffi.Void>, bool, bool, int, int)
+      >('bm_engine_open_sessions_automatically');
+
+  late final _openSessionsManually = _lib
+      .lookupFunction<
+        ffi.Bool Function(ffi.Pointer<ffi.Void>),
+        bool Function(ffi.Pointer<ffi.Void>)
+      >('bm_engine_open_sessions_manually');
+
   late final _policyResponse = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -551,6 +569,26 @@ class BmLib {
     required bool server,
     EndpointMode? endpointMode,
   }) => _configureRoles(engine, server, endpointMode?.code ?? 0);
+
+  /// Hands the engine what this controller is, and lets it open sessions:
+  /// it says the right things in the right order once a game acknowledges.
+  bool openSessionsAutomatically(
+    ffi.Pointer<ffi.Void> engine, {
+    required bool gyroscope,
+    required bool orientation,
+    required int screenWidth,
+    required int screenHeight,
+  }) => _openSessionsAutomatically(
+    engine,
+    gyroscope,
+    orientation,
+    screenWidth,
+    screenHeight,
+  );
+
+  /// Leaves session openings to the caller.
+  bool openSessionsManually(ffi.Pointer<ffi.Void> engine) =>
+      _openSessionsManually(engine);
 
   Map<String, dynamic> _deviceCoreWire(
     String id,

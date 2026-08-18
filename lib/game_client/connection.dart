@@ -6,6 +6,7 @@ part of 'game_client.dart';
 extension GameClientConnection on GameClient {
   void setCapabilitiesOverride(int? mask) {
     _capabilities.setOverride(mask);
+    _capabilities.get().then(_applySessionInputs);
   }
 
   Future<void> connect({Duration timeout = const Duration(seconds: 5)}) async {
@@ -61,11 +62,26 @@ extension GameClientConnection on GameClient {
       await _waitForRegister(timeout: timeout);
 
       await requestList();
-      _capabilities.get();
+      _applySessionInputs(0);
+      _capabilities.get().then(_applySessionInputs);
     } catch (_) {
       await close();
       rethrow;
     }
+  }
+
+  /// The engine opens game sessions from these, so it needs them before a game
+  /// connects. Sensor probing finishes later than that can be, so it is handed
+  /// what is known and told again when the probe lands.
+  void _applySessionInputs(int capabilities) {
+    if (_engine == null) return;
+    _lib.openSessionsAutomatically(
+      _engine!,
+      gyroscope: (capabilities & 1) != 0,
+      orientation: (capabilities & 2) != 0,
+      screenWidth: _screenWidth,
+      screenHeight: _screenHeight,
+    );
   }
 
   Future<String> _determineLocalHost() async {
@@ -264,10 +280,6 @@ extension GameClientConnection on GameClient {
         continue;
       }
       _answerHandshake(outcome, _gameSocket, 'Game');
-      if (outcome.compatible && !_gameHandshakeHandled) {
-        _gameHandshakeHandled = true;
-        _doGameInitSequence();
-      }
     }
   }
 

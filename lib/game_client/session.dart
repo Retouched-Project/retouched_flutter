@@ -9,7 +9,6 @@ extension GameClientSession on GameClient {
     _currentScheme = null;
     _touchEnabled = null;
     _lastControlConfig = null;
-    _gameHandshakeHandled = false;
     _lastProgress = null;
     if (!_progressC.isClosed) {
       _progressC.add(0.0);
@@ -118,23 +117,6 @@ extension GameClientSession on GameClient {
     });
     _udpSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, udpPort);
     _udpSub = _udpSocket!.listen(_onUdpEvent);
-  }
-
-  Future<void> _doGameInitSequence() async {
-    final socket = _gameSocket;
-    final game = _activeGame;
-    if (socket == null || game == null || _deviceId == null) return;
-    final caps = await _capabilities.get();
-    if (_activeGame == null) return;
-    final capActions = _lib.makeSetCapabilities(_engine!, game.deviceId, caps);
-    _sendOutgoings(capActions);
-    final xmlActions = _lib.makeRequestXml(
-      _engine!,
-      game.deviceId,
-      _screenWidth,
-      _screenHeight,
-    );
-    _sendOutgoings(xmlActions);
   }
 
   void sendPause() {
