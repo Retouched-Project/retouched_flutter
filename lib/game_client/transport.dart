@@ -42,6 +42,16 @@ extension GameClientTransport on GameClient {
     }
   }
 
+  /// Releases what the engine held for a peer. Its outgoings are the notices
+  /// a registry owes anyone still watching, so they still have to be written.
+  void _tellEnginePeerGone(String deviceId) {
+    final engine = _engine;
+    if (engine == null || deviceId.isEmpty) return;
+    _sendOutgoings(
+      _lib.emit(engine, {'type': 'PeerGone', 'device_id': deviceId}),
+    );
+  }
+
   void _warnUdpOnce(String why) {
     if (_udpWarned) return;
     _udpWarned = true;

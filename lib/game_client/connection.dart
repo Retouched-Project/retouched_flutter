@@ -306,6 +306,7 @@ extension GameClientConnection on GameClient {
       const SocketException('Connection closed by server'),
     );
     _safeComplete(_registry.listCompleter);
+    _tellEnginePeerGone(serverDeviceId);
     _socket = null;
     _sub = null;
     _registry.reset();
@@ -329,6 +330,7 @@ extension GameClientConnection on GameClient {
     }
 
     if (_activeGame != null) {
+      _tellEnginePeerGone(_activeGame!.deviceId);
       MetricsService.send(
         type: MetricsService.sessionEnd,
         appId: _activeGame!.appId,
