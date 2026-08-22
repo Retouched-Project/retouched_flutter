@@ -42,7 +42,7 @@ extension GameClientConnection on GameClient {
       );
       _applySessionInputs(0);
 
-      _lib.registerDevice(
+      _lib.declarePeer(
         _engine!,
         serverDeviceId,
         serverDeviceName,
@@ -77,6 +77,7 @@ extension GameClientConnection on GameClient {
       orientation: (capabilities & 2) != 0,
       screenWidth: _screenWidth,
       screenHeight: _screenHeight,
+      datagrams: true,
     );
   }
 
@@ -232,7 +233,13 @@ extension GameClientConnection on GameClient {
     for (final frame in frames) {
       final outcome = _registryHandshaker.onMessage(frame);
       if (outcome.passthrough) {
-        _handleOutput(_lib.processIncoming(_engine!, frame));
+        _handleOutput(
+          _lib.processIncoming(
+            _engine!,
+            frame,
+            source: _socket?.remoteAddress.address,
+          ),
+        );
         continue;
       }
       _answerHandshake(outcome, _socket, 'Registry');
@@ -255,7 +262,15 @@ extension GameClientConnection on GameClient {
     final dg = _udpSocket?.receive();
     if (dg == null) return;
     // A datagram is already one whole message, so it needs no framer.
-    _handleOutput(_lib.processIncoming(_engine!, dg.data));
+    _handleOutput(
+      _lib.processIncoming(
+        _engine!,
+        dg.data,
+        source: dg.address.address,
+        sourcePort: dg.port,
+        datagram: true,
+      ),
+    );
   }
 
   void _onGameData(List<int> data) {
@@ -272,7 +287,13 @@ extension GameClientConnection on GameClient {
     for (final frame in frames) {
       final outcome = _gameHandshaker.onMessage(frame);
       if (outcome.passthrough) {
-        _handleOutput(_lib.processIncoming(_engine!, frame));
+        _handleOutput(
+          _lib.processIncoming(
+            _engine!,
+            frame,
+            source: _gameSocket?.remoteAddress.address,
+          ),
+        );
         continue;
       }
       _answerHandshake(outcome, _gameSocket, 'Game');

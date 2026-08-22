@@ -105,7 +105,7 @@ class TouchProcessor {
     sendActions?.call(actions);
 
     // Only touches that went out as datagrams need resending to survive loss.
-    final unreliable = actions.any((a) => a.prefersDatagram);
+    final unreliable = actions.any((a) => a.via.datagram);
     if (retryCount < 3 &&
         unreliable &&
         _touchFlushTimer == null &&

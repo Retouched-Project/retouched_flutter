@@ -2,21 +2,17 @@
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
 import 'dart:async';
-import 'dart:ffi' as ffi;
 import '../bmlib/bm_lib.dart';
 
+/// Keeps the host list the engine hands us, for the UI to read. The engine
+/// records the hosts themselves as it parses them.
 class RegistryClient {
-  final BmLib _lib;
-
   List<String> games = const [];
   List<BmRegistryInfo> gameInfos = const [];
   Completer<void>? registerCompleter;
   Completer<void>? listCompleter;
 
-  ffi.Pointer<ffi.Void> Function()? getEngine;
   void Function(List<String>)? onGamesChanged;
-
-  RegistryClient(this._lib);
 
   void onRegistrationResult() {
     _safeComplete(registerCompleter);
@@ -38,20 +34,7 @@ class RegistryClient {
   }
 
   void _replaceGameInfos(List<BmRegistryInfo> infos) {
-    for (final g in infos) {
-      final engine = getEngine?.call();
-      if (engine != null) {
-        _lib.registerDevice(
-          engine,
-          g.deviceId,
-          g.deviceName,
-          g.deviceType,
-          g.address,
-          g.unreliablePort,
-          g.reliablePort,
-        );
-      }
-    }
+    // The engine parsed this list and recorded every host in it.
     gameInfos = infos.toList(growable: false);
     games = gameInfos.map((g) => g.deviceName).toList(growable: false);
     onGamesChanged?.call(List.unmodifiable(games));
@@ -62,18 +45,6 @@ class RegistryClient {
     final map = {for (final g in gameInfos) g.deviceId: g};
     for (final g in infos) {
       map[g.deviceId] = g;
-      final engine = getEngine?.call();
-      if (engine != null) {
-        _lib.registerDevice(
-          engine,
-          g.deviceId,
-          g.deviceName,
-          g.deviceType,
-          g.address,
-          g.unreliablePort,
-          g.reliablePort,
-        );
-      }
     }
     gameInfos = map.values.toList(growable: false);
     games = gameInfos.map((g) => g.deviceName).toList(growable: false);

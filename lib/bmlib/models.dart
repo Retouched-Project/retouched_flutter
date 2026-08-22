@@ -44,23 +44,6 @@ class BmRegistryInfo {
     required this.reliablePort,
   });
 
-  BmRegistryInfo withEndpoint({
-    required String address,
-    required int unreliablePort,
-    required int reliablePort,
-  }) => BmRegistryInfo(
-    slotId: slotId,
-    appId: appId,
-    currentPlayers: currentPlayers,
-    maxPlayers: maxPlayers,
-    deviceType: deviceType,
-    deviceId: deviceId,
-    deviceName: deviceName,
-    address: address,
-    unreliablePort: unreliablePort,
-    reliablePort: reliablePort,
-  );
-
   factory BmRegistryInfo.fromWire(Map m) {
     final device = (m['device'] as Map?) ?? const {};
     final addr = (m['device_address'] as Map?) ?? const {};
@@ -127,23 +110,45 @@ class TouchPointData {
   };
 }
 
+/// Which path an outgoing message is built for, and where that path leads.
+class BmVia {
+  final bool datagram;
+
+  /// Where to send it, when the path is a datagram. A transport that reaches
+  /// the peer another way can ignore both.
+  final String address;
+  final int port;
+
+  const BmVia._(this.datagram, this.address, this.port);
+
+  static const stream = BmVia._(false, '', 0);
+
+  factory BmVia.fromWire(Object? value) {
+    if (value is! Map || value['type'] != 'Datagram') return stream;
+    return BmVia._(
+      true,
+      (value['address'] as String?) ?? '',
+      (value['port'] as int?) ?? 0,
+    );
+  }
+}
+
 class BmOutgoing {
   final String targetDeviceId;
   final int channel;
   final int reliability;
 
-  /// Whether this goes out as a datagram. Not a hint: a peer that cannot take
-  /// datagrams asks for reliable delivery instead via setReliabilityForTouch.
-  final bool prefersDatagram;
+  /// Which path these bytes are built for.
+  final BmVia via;
 
-  /// The message, with no length in front.
+  /// Ready to write on [via], with nothing left to add or strip.
   final Uint8List payload;
 
   const BmOutgoing(
     this.targetDeviceId,
     this.channel,
     this.reliability,
-    this.prefersDatagram,
+    this.via,
     this.payload,
   );
 
@@ -151,7 +156,7 @@ class BmOutgoing {
     (m['target_device_id'] as String?) ?? '',
     (m['channel'] as int?) ?? 0,
     (m['reliability'] as int?) ?? 0,
-    (m['prefers_datagram'] as bool?) ?? false,
+    BmVia.fromWire(m['via']),
     _bytes(m['payload']),
   );
 }

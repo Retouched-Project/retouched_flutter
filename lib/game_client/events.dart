@@ -54,18 +54,12 @@ extension GameClientEvents on GameClient {
   }
 
   void _handlePeerConnected(BmEvent event) {
-    final game = _activeGame;
-    final socket = _gameSocket;
-    if (game == null || socket == null || event.peerDeviceId != game.deviceId) {
-      return;
-    }
-    final gameIp = socket.remoteAddress.address;
-    _activeGame = game.withEndpoint(
-      address: gameIp,
-      unreliablePort: event.peerUnreliablePort,
-      reliablePort: game.reliablePort,
+    // Where the game takes datagrams is the engine's to know: it hears the
+    // port in the ack and sees the host on every packet.
+    _log.info(
+      'Game ${event.peerDeviceId} is ready, '
+      'datagram port ${event.peerUnreliablePort}',
     );
-    _log.info('Ack set UDP endpoint: $gameIp:${event.peerUnreliablePort}');
   }
 
   void _handleConnectionFailed(BmEvent event) {

@@ -4,28 +4,44 @@
 part of 'game_client.dart';
 
 extension GameClientTransport on GameClient {
+  /// The payload is ready to write, so this only has to pick a path.
   void _sendOutgoings(List<BmOutgoing> outgoings) {
     for (final outgoing in outgoings) {
-      final game = _activeGame;
-      if (outgoing.prefersDatagram &&
-          game != null &&
-          outgoing.targetDeviceId == game.deviceId) {
-        // A datagram carries the message as it is.
-        _sendUdp(outgoing.payload);
+      if (outgoing.via.datagram) {
+        _sendUdp(outgoing.payload, outgoing.via);
       } else {
-        // A stream needs the length in front.
-        final socket = _resolveSocket(outgoing.targetDeviceId);
-        socket?.add(_lib.frame(outgoing.payload));
+        _resolveSocket(outgoing.targetDeviceId)?.add(outgoing.payload);
       }
     }
   }
 
-  void _sendUdp(Uint8List payload) {
-    final game = _activeGame;
-    if (game == null || _udpSocket == null) return;
-    final target = InternetAddress.tryParse(game.address);
-    if (target == null) return;
-    _udpSocket!.send(payload, target, game.unreliablePort);
+  /// The engine has already decided these bytes go by datagram, so anything
+  /// stopping that is worth saying. Input is frequent, so it is said once.
+  void _sendUdp(Uint8List payload, BmVia via) {
+    if (_udpSocket == null) {
+      _warnUdpOnce('there is no socket to send from');
+      return;
+    }
+    final target = InternetAddress.tryParse(via.address);
+    if (target == null) {
+      _warnUdpOnce('"${via.address}" is not an address we can send to');
+      return;
+    }
+    final sent = _udpSocket!.send(payload, target, via.port);
+    if (sent == 0) {
+      _warnUdpOnce('the socket accepted no bytes for ${via.address}');
+      return;
+    }
+    if (!_udpConfirmed) {
+      _udpConfirmed = true;
+      _log.info('Datagrams are reaching ${via.address}:${via.port}');
+    }
+  }
+
+  void _warnUdpOnce(String why) {
+    if (_udpWarned) return;
+    _udpWarned = true;
+    _log.warning('Cannot send a datagram: $why');
   }
 
   Socket? _resolveSocket(String targetDeviceId) {
@@ -33,7 +49,7 @@ extension GameClientTransport on GameClient {
     if (_activeGame != null && targetDeviceId == _activeGame!.deviceId) {
       return _gameSocket ?? _socket;
     }
-    return _socket;
+    return null;
   }
 
   List<int>? _filterPolicyRequest(List<int> data) {

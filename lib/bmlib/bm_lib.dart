@@ -53,7 +53,7 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_init_local_device');
 
-  late final _registerDevice = _lib
+  late final _declarePeer = _lib
       .lookupFunction<
         ffi.Bool Function(
           ffi.Pointer<ffi.Void>,
@@ -61,7 +61,7 @@ class BmLib {
           ffi.IntPtr,
         ),
         bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
-      >('bm_engine_register_device');
+      >('bm_engine_declare_peer');
 
   late final _configure = _lib
       .lookupFunction<
@@ -79,11 +79,15 @@ class BmLib {
           ffi.Pointer<ffi.Void>,
           ffi.Pointer<ffi.Uint8>,
           ffi.IntPtr,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.IntPtr,
           ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
           ffi.Pointer<ffi.IntPtr>,
         ),
         bool Function(
           ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
           ffi.Pointer<ffi.Uint8>,
           int,
           ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
@@ -528,7 +532,9 @@ class BmLib {
     _callIn(core, (ptr, len) => _initLocalDevice(engine, ptr, len));
   }
 
-  void registerDevice(
+  /// Tells the engine about a peer it could not have learned about on its own,
+  /// at an address known out of band.
+  void declarePeer(
     ffi.Pointer<ffi.Void> engine,
     String deviceId,
     String deviceName,
@@ -547,7 +553,7 @@ class BmLib {
         reliablePort,
       ),
     );
-    _callIn(core, (ptr, len) => _registerDevice(engine, ptr, len));
+    _callIn(core, (ptr, len) => _declarePeer(engine, ptr, len));
   }
 
   /// Everything the engine is told about itself. Pass the whole of it whenever
@@ -565,18 +571,18 @@ class BmLib {
     int screenWidth = 0,
     int screenHeight = 0,
     bool approvesRegistrations = true,
+    bool datagrams = false,
   }) => _callIn(
     mp.serialize({
       'server': server,
-      'endpoint': endpoint == null
-          ? null
-          : (endpoint == EndpointMode.game ? 'Game' : 'Controller'),
+      'endpoint': endpoint?.code,
       'opens_sessions': opensSessions,
       'gyroscope': gyroscope,
       'orientation': orientation,
       'screen_width': screenWidth,
       'screen_height': screenHeight,
       'approves_registrations': approvesRegistrations,
+      'datagrams': datagrams,
     }),
     (ptr, len) => _configure(engine, ptr, len),
   );
@@ -607,14 +613,39 @@ class BmLib {
     return bytes;
   }
 
+  /// [source] is where the transport says the bytes came from. A transport
+  /// that carries no addressing leaves it null and the engine invents none.
   BmProcessOutput processIncoming(
     ffi.Pointer<ffi.Void> engine,
-    Uint8List data,
-  ) {
+    Uint8List data, {
+    String? source,
+    int sourcePort = 0,
+    bool datagram = false,
+  }) {
+    final arrival = source == null
+        ? Uint8List(0)
+        : mp.serialize({
+            'source': source,
+            'source_port': sourcePort,
+            'datagram': datagram,
+          });
+    final arrivalPtr = calloc<ffi.Uint8>(arrival.isEmpty ? 1 : arrival.length);
+    if (arrival.isNotEmpty) {
+      arrivalPtr.asTypedList(arrival.length).setAll(0, arrival);
+    }
     final out = _callOut(
       data,
-      (ptr, len, op, ol) => _processIncoming(engine, ptr, len, op, ol),
+      (ptr, len, op, ol) => _processIncoming(
+        engine,
+        ptr,
+        len,
+        arrivalPtr,
+        arrival.length,
+        op,
+        ol,
+      ),
     );
+    calloc.free(arrivalPtr);
     return _decodeProcessOutput(out);
   }
 
@@ -675,13 +706,11 @@ class BmLib {
   List<BmOutgoing> makeDeviceConnectRequested(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
-    BmRegistryInfo game,
-    BmRegistryInfo controller,
+    String gameDeviceId,
   ) => emit(engine, {
     'type': 'ConnectToHost',
     'target': targetId,
-    'host': game.toWire(),
-    'self_info': controller.toWire(),
+    'host_id': gameDeviceId,
   });
 
   List<BmOutgoing> makeRequestXml(

@@ -5,6 +5,8 @@ part of 'game_client.dart';
 
 extension GameClientSession on GameClient {
   void _forgetGameSession() {
+    _udpConfirmed = false;
+    _udpWarned = false;
     _assembler?.reset();
     _currentScheme = null;
     _touchEnabled = null;
@@ -29,8 +31,7 @@ extension GameClientSession on GameClient {
     final actions = _lib.makeDeviceConnectRequested(
       _engine!,
       serverDeviceId,
-      game,
-      _selfInfo!,
+      game.deviceId,
     );
     _sendOutgoings(actions);
     MetricsService.send(

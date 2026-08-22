@@ -75,6 +75,10 @@ class GameClient {
   BmFramer get _gameFramer => _gameFramerInst ??= _lib.createFramer();
   ServerSocket? _gameServer;
   RawDatagramSocket? _udpSocket;
+
+  // Said once per session, so a steady stream of input cannot flood the log.
+  bool _udpConfirmed = false;
+  bool _udpWarned = false;
   StreamSubscription<RawSocketEvent>? _udpSub;
 
   late final StreamController<List<String>> _gamesC =
@@ -165,8 +169,7 @@ class GameClient {
     _touch.getActiveGameDeviceId = () => _activeGame?.deviceId;
     _touch.sendActions = _sendOutgoings;
 
-    _registry = RegistryClient(_lib);
-    _registry.getEngine = () => _engine!;
+    _registry = RegistryClient();
     _registry.onGamesChanged = (games) {
       _gamesC.add(games);
     };
