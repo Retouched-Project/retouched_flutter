@@ -22,6 +22,10 @@ extension GameClientTransport on GameClient {
       _warnUdpOnce('there is no socket to send from');
       return;
     }
+    if (via.address.isEmpty) {
+      _warnUdpOnce('nothing has observed where this game is');
+      return;
+    }
     final target = InternetAddress.tryParse(via.address);
     if (target == null) {
       _warnUdpOnce('"${via.address}" is not an address we can send to');
