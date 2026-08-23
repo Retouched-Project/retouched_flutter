@@ -43,6 +43,12 @@ class BmLib {
         void Function(ffi.Pointer<ffi.Uint8>, int)
       >('bm_buffer_free');
 
+  late final _getLastError = _lib
+      .lookupFunction<
+        ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.IntPtr),
+        int Function(ffi.Pointer<ffi.Char>, int)
+      >('bm_get_last_error');
+
   late final _initLocalDevice = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -420,8 +426,9 @@ class BmLib {
 
   /// Adds the length prefix a stream transport needs. Datagrams send the
   /// message as it is.
-  Uint8List frame(Uint8List message) =>
-      _callOut(message, (ptr, len, op, ol) => _frame(ptr, len, op, ol));
+  Uint8List frame(Uint8List message) => _checked(
+    _callOut(message, (ptr, len, op, ol) => _frame(ptr, len, op, ol)),
+  );
 
   bool configureLogging(int level, int capacity) =>
       _logConfigure(level, capacity);
@@ -473,7 +480,10 @@ class BmLib {
     return result;
   }
 
-  Uint8List _callOut(
+  /// Null means the call itself was refused; the library said why and
+  /// [_takeLastError] has it. Empty bytes are a successful call with nothing
+  /// to say, which some calls legitimately have.
+  Uint8List? _callOut(
     Uint8List input,
     bool Function(
       ffi.Pointer<ffi.Uint8>,
@@ -494,7 +504,20 @@ class BmLib {
     calloc.free(inPtr);
     calloc.free(outPtr);
     calloc.free(outLen);
+    return ok ? out : null;
+  }
+
+  Uint8List _checked(Uint8List? out) {
+    if (out == null) throw BmError(_takeLastError());
     return out;
+  }
+
+  String _takeLastError() {
+    final buf = calloc<ffi.Char>(512);
+    final n = _getLastError(buf, 512);
+    final message = n > 0 ? buf.cast<Utf8>().toDartString() : '';
+    calloc.free(buf);
+    return message.isEmpty ? 'no further detail' : message;
   }
 
   bool _callIn(
@@ -646,9 +669,11 @@ class BmLib {
       ),
     );
     calloc.free(arrivalPtr);
-    return _decodeProcessOutput(out);
+    return _decodeProcessOutput(_checked(out));
   }
 
+  /// Throws [BmError] when the command itself was wrong. A send to a peer
+  /// that has since left is not an error and comes back empty.
   List<BmOutgoing> emit(
     ffi.Pointer<ffi.Void> engine,
     Map<String, dynamic> command,
@@ -657,7 +682,7 @@ class BmLib {
       mp.serialize(command),
       (ptr, len, op, ol) => _emit(engine, ptr, len, op, ol),
     );
-    return _decodeOutgoings(out);
+    return _decodeOutgoings(_checked(out));
   }
 
   BmProcessOutput _decodeProcessOutput(Uint8List bytes) {
@@ -909,6 +934,14 @@ class HandshakeOutcome {
   bool get compatible => check == VersionCheck.compatible;
 }
 
+/// The library refused a call, and this is what it said.
+class BmError implements Exception {
+  final String message;
+  const BmError(this.message);
+  @override
+  String toString() => 'BmError: $message';
+}
+
 /// Raised when a stream can no longer be split into messages.
 class BmFramingException implements Exception {
   final String message;
@@ -939,9 +972,11 @@ class BmHandshaker {
   /// Offers one message. A passthrough result belongs to the engine.
   HandshakeOutcome onMessage(Uint8List message) {
     if (_ptr == ffi.nullptr) return HandshakeOutcome.passthroughResult;
-    final out = _lib._callOut(
-      message,
-      (ptr, len, op, ol) => _lib._handshakerOnMessage(_ptr, ptr, len, op, ol),
+    final out = _lib._checked(
+      _lib._callOut(
+        message,
+        (ptr, len, op, ol) => _lib._handshakerOnMessage(_ptr, ptr, len, op, ol),
+      ),
     );
     if (out.isEmpty) return HandshakeOutcome.passthroughResult;
     final decoded = mp.deserialize(out) as Map;
@@ -1003,9 +1038,11 @@ class BmPolicySniffer {
       );
     }
     final bytes = data is Uint8List ? data : Uint8List.fromList(data);
-    final out = _lib._callOut(
-      bytes,
-      (ptr, len, op, ol) => _lib._policySnifferFeed(_ptr, ptr, len, op, ol),
+    final out = _lib._checked(
+      _lib._callOut(
+        bytes,
+        (ptr, len, op, ol) => _lib._policySnifferFeed(_ptr, ptr, len, op, ol),
+      ),
     );
     if (out.isEmpty) return PolicySniff.waitResult;
     final decoded = mp.deserialize(out) as Map;
@@ -1052,10 +1089,8 @@ class BmFramer {
       bytes,
       (ptr, len, op, ol) => _lib._framerFeed(_ptr, ptr, len, op, ol),
     );
-    // A successful call always encodes at least an empty list, so nothing at
-    // all came back means the call itself failed.
-    if (out.isEmpty) {
-      throw const BmFramingException('framer rejected the stream');
+    if (out == null) {
+      throw BmFramingException(_lib._takeLastError());
     }
     final decoded = mp.deserialize(out) as List;
     return decoded.map((m) => Uint8List.fromList(List<int>.from(m))).toList();
