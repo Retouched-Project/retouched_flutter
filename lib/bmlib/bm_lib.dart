@@ -119,6 +119,22 @@ class BmLib {
         )
       >('bm_engine_emit');
 
+  late final _handleTime = _lib
+      .lookupFunction<
+        ffi.Bool Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Uint64,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        ),
+        bool Function(
+          ffi.Pointer<ffi.Void>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.IntPtr>,
+        )
+      >('bm_engine_handle_time');
+
   late final _handshake = _lib
       .lookupFunction<
         ffi.Bool Function(ffi.Pointer<ffi.Uint8>, ffi.IntPtr),
@@ -644,13 +660,15 @@ class BmLib {
     String? source,
     int sourcePort = 0,
     bool datagram = false,
+    int? nowMs,
   }) {
-    final arrival = source == null
+    final arrival = source == null && nowMs == null
         ? Uint8List(0)
         : mp.serialize({
             'source': source,
             'source_port': sourcePort,
             'datagram': datagram,
+            'now_ms': nowMs,
           });
     final arrivalPtr = calloc<ffi.Uint8>(arrival.isEmpty ? 1 : arrival.length);
     if (arrival.isNotEmpty) {
@@ -670,6 +688,19 @@ class BmLib {
     );
     calloc.free(arrivalPtr);
     return _decodeProcessOutput(_checked(out));
+  }
+
+  /// Tells the engine what time it is, in milliseconds on any monotonic
+  /// clock. Anything due fires, and the output names the next wanted moment.
+  BmProcessOutput handleTime(ffi.Pointer<ffi.Void> engine, int nowMs) {
+    final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
+    final outLen = calloc<ffi.IntPtr>();
+    final ok = _handleTime(engine, nowMs, outPtr, outLen);
+    final out = _readOut(ok, outPtr, outLen);
+    calloc.free(outPtr);
+    calloc.free(outLen);
+    if (!ok) throw BmError(_takeLastError());
+    return _decodeProcessOutput(out);
   }
 
   /// Throws [BmError] when the command itself was wrong. A send to a peer
@@ -696,7 +727,7 @@ class BmLib {
     final outgoings = ((decoded['outgoings'] as List?) ?? const [])
         .map((e) => BmOutgoing.fromWire(e as Map))
         .toList();
-    return BmProcessOutput(events, outgoings);
+    return BmProcessOutput(events, outgoings, decoded['next_time_ms'] as int?);
   }
 
   List<BmOutgoing> _decodeOutgoings(Uint8List bytes) {

@@ -220,5 +220,10 @@ class BmEvent {
 class BmProcessOutput {
   final List<BmEvent> events;
   final List<BmOutgoing> outgoings;
-  const BmProcessOutput(this.events, this.outgoings);
+
+  /// When the engine next wants [BmLib.handleTime], on the caller's own
+  /// clock. Null when nothing is scheduled.
+  final int? nextTimeMs;
+
+  const BmProcessOutput(this.events, this.outgoings, [this.nextTimeMs]);
 }
