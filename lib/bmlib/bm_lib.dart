@@ -705,7 +705,7 @@ class BmLib {
 
   /// Throws [BmError] when the command itself was wrong. A send to a peer
   /// that has since left is not an error and comes back empty.
-  List<BmOutgoing> emit(
+  BmProcessOutput emit(
     ffi.Pointer<ffi.Void> engine,
     Map<String, dynamic> command,
   ) {
@@ -713,7 +713,7 @@ class BmLib {
       mp.serialize(command),
       (ptr, len, op, ol) => _emit(engine, ptr, len, op, ol),
     );
-    return _decodeOutgoings(_checked(out));
+    return _decodeProcessOutput(_checked(out));
   }
 
   BmProcessOutput _decodeProcessOutput(Uint8List bytes) {
@@ -730,13 +730,6 @@ class BmLib {
     return BmProcessOutput(events, outgoings, decoded['next_time_ms'] as int?);
   }
 
-  List<BmOutgoing> _decodeOutgoings(Uint8List bytes) {
-    if (bytes.isEmpty) return const [];
-    final decoded = mp.deserialize(bytes);
-    if (decoded is! List) return const [];
-    return decoded.map((e) => BmOutgoing.fromWire(e as Map)).toList();
-  }
-
   List<BmOutgoing> makeRegistryRegister(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
@@ -748,7 +741,7 @@ class BmLib {
     'info': info.toWire(),
     'domain': domain,
     'return_method': null,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeRegistryList(
     ffi.Pointer<ffi.Void> engine,
@@ -757,7 +750,7 @@ class BmLib {
     'type': 'RequestHostList',
     'target': targetId,
     'return_method': null,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeDeviceConnectRequested(
     ffi.Pointer<ffi.Void> engine,
@@ -767,7 +760,7 @@ class BmLib {
     'type': 'ConnectToHost',
     'target': targetId,
     'host_id': gameDeviceId,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeRequestXml(
     ffi.Pointer<ffi.Void> engine,
@@ -779,12 +772,15 @@ class BmLib {
     'target': targetId,
     'width': width,
     'height': height,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeOnControlSchemeParsed(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
-  ) => emit(engine, {'type': 'ControlSchemeParsed', 'target': targetId});
+  ) => emit(engine, {
+    'type': 'ControlSchemeParsed',
+    'target': targetId,
+  }).outgoings;
 
   List<BmOutgoing> makeButtonInvoke(
     ffi.Pointer<ffi.Void> engine,
@@ -796,26 +792,39 @@ class BmLib {
     'target': targetId,
     'handler': handler,
     'pressed': pressed,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeDpadUpdate(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     int x,
     int y,
-  ) => emit(engine, {'type': 'SendDPad', 'target': targetId, 'x': x, 'y': y});
+  ) => emit(engine, {
+    'type': 'SendDPad',
+    'target': targetId,
+    'x': x,
+    'y': y,
+  }).outgoings;
 
   List<BmOutgoing> makeSendKeyString(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     String key,
-  ) => emit(engine, {'type': 'SendKeyString', 'target': targetId, 'key': key});
+  ) => emit(engine, {
+    'type': 'SendKeyString',
+    'target': targetId,
+    'key': key,
+  }).outgoings;
 
   List<BmOutgoing> makeSendNavigation(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     String nav,
-  ) => emit(engine, {'type': 'SendNavigation', 'target': targetId, 'nav': nav});
+  ) => emit(engine, {
+    'type': 'SendNavigation',
+    'target': targetId,
+    'nav': nav,
+  }).outgoings;
 
   List<BmOutgoing> makeTouchSet(
     ffi.Pointer<ffi.Void> engine,
@@ -825,7 +834,7 @@ class BmLib {
     'type': 'SendTouch',
     'target': targetId,
     'touches': touches.map((t) => t.toWire()).toList(),
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeAccel(
     ffi.Pointer<ffi.Void> engine,
@@ -839,7 +848,7 @@ class BmLib {
     'x': x,
     'y': y,
     'z': z,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeGyro(
     ffi.Pointer<ffi.Void> engine,
@@ -853,7 +862,7 @@ class BmLib {
     'x': x,
     'y': y,
     'z': z,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeOrientation(
     ffi.Pointer<ffi.Void> engine,
@@ -869,7 +878,7 @@ class BmLib {
     'y': y,
     'z': z,
     'w': w,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makeSetCapabilities(
     ffi.Pointer<ffi.Void> engine,
@@ -880,10 +889,10 @@ class BmLib {
     'target': targetId,
     'gyroscope': (capabilities & 1) != 0,
     'orientation': (capabilities & 2) != 0,
-  });
+  }).outgoings;
 
   List<BmOutgoing> makePause(ffi.Pointer<ffi.Void> engine, String targetId) =>
-      emit(engine, {'type': 'Pause', 'target': targetId});
+      emit(engine, {'type': 'Pause', 'target': targetId}).outgoings;
 
   List<BmOutgoing> makeMenuEvent(
     ffi.Pointer<ffi.Void> engine,
@@ -893,7 +902,7 @@ class BmLib {
     'type': 'SendMenuEvent',
     'target': targetId,
     'event': event,
-  });
+  }).outgoings;
 
   ffi.DynamicLibrary _openLibrary() {
     if (Platform.isWindows) {

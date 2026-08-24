@@ -48,7 +48,7 @@ extension GameClientTransport on GameClient {
     final engine = _engine;
     if (engine == null || deviceId.isEmpty) return;
     _sendOutgoings(
-      _lib.emit(engine, {'type': 'PeerGone', 'device_id': deviceId}),
+      _lib.emit(engine, {'type': 'PeerGone', 'device_id': deviceId}).outgoings,
     );
   }
 
