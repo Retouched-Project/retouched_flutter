@@ -24,7 +24,7 @@ class SensorProcessor {
   AccelerometerEvent? _lastAccel;
   List<double>? _orientationBaselineInv;
 
-  int _orientationIntervalMs = 50;
+  int _orientationIntervalMs = 100;
   int _lastOrientationSentAt = 0;
   bool _orientationEnabled = false;
   int _accelIntervalMs = 100;
@@ -251,7 +251,7 @@ class SensorProcessor {
     stopAll();
     _accelIntervalMs = 100;
     _gyroIntervalMs = 100;
-    _orientationIntervalMs = 50;
+    _orientationIntervalMs = 100;
     _orientationEnabled = false;
     _lastAccelSentAt = 0;
     _lastGyroSentAt = 0;
