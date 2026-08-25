@@ -737,7 +737,12 @@ class BmLib {
     final outgoings = ((decoded['outgoings'] as List?) ?? const [])
         .map((e) => BmOutgoing.fromWire(e as Map))
         .toList();
-    return BmProcessOutput(events, outgoings, decoded['next_time_ms'] as int?);
+    return BmProcessOutput(
+      events,
+      outgoings,
+      decoded['next_time_ms'] as int?,
+      decoded['next_send_ms'] as int?,
+    );
   }
 
   List<BmOutgoing> makeRegistryRegister(
@@ -847,8 +852,10 @@ class BmLib {
   }).outgoings;
 
   /// Sensor sends are paced by the engine at the interval the game asked for,
-  /// so a reading offered before its turn comes back as nothing to send.
-  List<BmOutgoing> makeAccel(
+  /// so a reading offered before its turn comes back with nothing to send.
+  /// These return the whole output because [BmProcessOutput.nextSendMs] is the
+  /// point: hold on to it and skip the call until then.
+  BmProcessOutput makeAccel(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     double x,
@@ -861,9 +868,9 @@ class BmLib {
     'x': x,
     'y': y,
     'z': z,
-  }, nowMs: nowMs).outgoings;
+  }, nowMs: nowMs);
 
-  List<BmOutgoing> makeGyro(
+  BmProcessOutput makeGyro(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     double x,
@@ -876,9 +883,9 @@ class BmLib {
     'x': x,
     'y': y,
     'z': z,
-  }, nowMs: nowMs).outgoings;
+  }, nowMs: nowMs);
 
-  List<BmOutgoing> makeOrientation(
+  BmProcessOutput makeOrientation(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     double x,
@@ -893,7 +900,7 @@ class BmLib {
     'y': y,
     'z': z,
     'w': w,
-  }, nowMs: nowMs).outgoings;
+  }, nowMs: nowMs);
 
   List<BmOutgoing> makeSetCapabilities(
     ffi.Pointer<ffi.Void> engine,

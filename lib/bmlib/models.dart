@@ -222,8 +222,18 @@ class BmProcessOutput {
   final List<BmOutgoing> outgoings;
 
   /// When the engine next wants [BmLib.handleTime], on the caller's own
-  /// clock. Null when nothing is scheduled.
+  /// clock. Null when nothing is scheduled. This is for a timer.
   final int? nextTimeMs;
 
-  const BmProcessOutput(this.events, this.outgoings, [this.nextTimeMs]);
+  /// The earliest moment a send of the kind just emitted would be accepted,
+  /// when that send was weighed against a cadence. This is for skipping calls
+  /// that have no chance.
+  final int? nextSendMs;
+
+  const BmProcessOutput(
+    this.events,
+    this.outgoings, [
+    this.nextTimeMs,
+    this.nextSendMs,
+  ]);
 }

@@ -27,6 +27,10 @@ class SensorProcessor {
   int _orientationIntervalMs = 100;
   bool _orientationEnabled = false;
 
+  int? _accelNextMs;
+  int? _gyroNextMs;
+  int? _orientationNextMs;
+
   ffi.Pointer<ffi.Void> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
   void Function(List<BmOutgoing>)? sendActions;
@@ -39,25 +43,28 @@ class SensorProcessor {
         accelerometerEventStream(
           samplingPeriod: SensorInterval.gameInterval,
         ).listen((event) {
+          // The reading is kept whatever happens next: the orientation
+          // fallback derives its quaternion from it.
           _lastAccel = event;
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
-          final x = event.x / -9.80665;
-          final y = event.y / -9.80665;
-          final z = event.z / -9.80665;
-          final actions = _lib.makeAccel(
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (_accelNextMs != null && now < _accelNextMs!) return;
+          final out = _lib.makeAccel(
             getEngine!(),
             gameDeviceId,
-            x,
-            y,
-            z,
-            DateTime.now().millisecondsSinceEpoch,
+            event.x / -9.80665,
+            event.y / -9.80665,
+            event.z / -9.80665,
+            now,
           );
-          sendActions?.call(actions);
+          _accelNextMs = out.nextSendMs;
+          sendActions?.call(out.outgoings);
         });
   }
 
   void stopAccel() {
+    _accelNextMs = null;
     _accelSub?.cancel();
     _accelSub = null;
   }
@@ -83,19 +90,23 @@ class SensorProcessor {
         .listen((event) {
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
-          final actions = _lib.makeGyro(
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (_gyroNextMs != null && now < _gyroNextMs!) return;
+          final out = _lib.makeGyro(
             getEngine!(),
             gameDeviceId,
             event.x,
             event.y,
             event.z,
-            DateTime.now().millisecondsSinceEpoch,
+            now,
           );
-          sendActions?.call(actions);
+          _gyroNextMs = out.nextSendMs;
+          sendActions?.call(out.outgoings);
         });
   }
 
   void stopGyro() {
+    _gyroNextMs = null;
     _gyroSub?.cancel();
     _gyroSub = null;
   }
@@ -122,7 +133,15 @@ class SensorProcessor {
     final qz = (event[2] as num).toDouble();
     final qw = (event[3] as num).toDouble();
 
+    // The baseline is taken from the first reading whether or not it is sent,
+    // so the reference frame does not depend on the cadence.
     _orientationBaselineInv ??= [-qx, -qy, -qz, qw];
+
+    final gameDeviceId = getActiveGameDeviceId?.call();
+    if (gameDeviceId == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_orientationNextMs != null && now < _orientationNextMs!) return;
+
     final inv = _orientationBaselineInv!;
     final ix = inv[0], iy = inv[1], iz = inv[2], iw = inv[3];
     final dx = iw * qx + ix * qw + iy * qz - iz * qy;
@@ -130,18 +149,17 @@ class SensorProcessor {
     final dz = iw * qz + ix * qy - iy * qx + iz * qw;
     final dw = iw * qw - ix * qx - iy * qy - iz * qz;
 
-    final gameDeviceId = getActiveGameDeviceId?.call();
-    if (gameDeviceId == null) return;
-    final actions = _lib.makeOrientation(
+    final out = _lib.makeOrientation(
       getEngine!(),
       gameDeviceId,
       dx,
       dy,
       dz,
       dw,
-      DateTime.now().millisecondsSinceEpoch,
+      now,
     );
-    sendActions?.call(actions);
+    _orientationNextMs = out.nextSendMs;
+    sendActions?.call(out.outgoings);
   }
 
   void _startOrientationFallback() {
@@ -156,23 +174,27 @@ class SensorProcessor {
         if (gameDeviceId == null) return;
         final accel = _lastAccel;
         if (accel == null) return;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (_orientationNextMs != null && now < _orientationNextMs!) return;
         final quat = _computeQuaternion(accel, _lastMag);
 
-        final actions = _lib.makeOrientation(
+        final out = _lib.makeOrientation(
           getEngine!(),
           gameDeviceId,
           quat[0],
           quat[1],
           quat[2],
           quat[3],
-          DateTime.now().millisecondsSinceEpoch,
+          now,
         );
-        sendActions?.call(actions);
+        _orientationNextMs = out.nextSendMs;
+        sendActions?.call(out.outgoings);
       },
     );
   }
 
   void stopOrientation() {
+    _orientationNextMs = null;
     _rotationVectorSub?.cancel();
     _rotationVectorSub = null;
     _orientationTimer?.cancel();
