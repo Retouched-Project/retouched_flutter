@@ -107,6 +107,8 @@ class BmLib {
           ffi.Pointer<ffi.Void>,
           ffi.Pointer<ffi.Uint8>,
           ffi.IntPtr,
+          ffi.Uint64,
+          ffi.Bool,
           ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
           ffi.Pointer<ffi.IntPtr>,
         ),
@@ -114,6 +116,8 @@ class BmLib {
           ffi.Pointer<ffi.Void>,
           ffi.Pointer<ffi.Uint8>,
           int,
+          int,
+          bool,
           ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
           ffi.Pointer<ffi.IntPtr>,
         )
@@ -705,13 +709,19 @@ class BmLib {
 
   /// Throws [BmError] when the command itself was wrong. A send to a peer
   /// that has since left is not an error and comes back empty.
+  ///
+  /// [nowMs] is a reading of any monotonic clock. Passing one lets the engine
+  /// hold a paced command back until its turn; passing none never holds
+  /// anything back.
   BmProcessOutput emit(
     ffi.Pointer<ffi.Void> engine,
-    Map<String, dynamic> command,
-  ) {
+    Map<String, dynamic> command, {
+    int? nowMs,
+  }) {
     final out = _callOut(
       mp.serialize(command),
-      (ptr, len, op, ol) => _emit(engine, ptr, len, op, ol),
+      (ptr, len, op, ol) =>
+          _emit(engine, ptr, len, nowMs ?? 0, nowMs != null, op, ol),
     );
     return _decodeProcessOutput(_checked(out));
   }
@@ -836,19 +846,22 @@ class BmLib {
     'touches': touches.map((t) => t.toWire()).toList(),
   }).outgoings;
 
+  /// Sensor sends are paced by the engine at the interval the game asked for,
+  /// so a reading offered before its turn comes back as nothing to send.
   List<BmOutgoing> makeAccel(
     ffi.Pointer<ffi.Void> engine,
     String targetId,
     double x,
     double y,
     double z,
+    int nowMs,
   ) => emit(engine, {
     'type': 'SendAccel',
     'target': targetId,
     'x': x,
     'y': y,
     'z': z,
-  }).outgoings;
+  }, nowMs: nowMs).outgoings;
 
   List<BmOutgoing> makeGyro(
     ffi.Pointer<ffi.Void> engine,
@@ -856,13 +869,14 @@ class BmLib {
     double x,
     double y,
     double z,
+    int nowMs,
   ) => emit(engine, {
     'type': 'SendGyro',
     'target': targetId,
     'x': x,
     'y': y,
     'z': z,
-  }).outgoings;
+  }, nowMs: nowMs).outgoings;
 
   List<BmOutgoing> makeOrientation(
     ffi.Pointer<ffi.Void> engine,
@@ -871,6 +885,7 @@ class BmLib {
     double y,
     double z,
     double w,
+    int nowMs,
   ) => emit(engine, {
     'type': 'SendOrientation',
     'target': targetId,
@@ -878,7 +893,7 @@ class BmLib {
     'y': y,
     'z': z,
     'w': w,
-  }).outgoings;
+  }, nowMs: nowMs).outgoings;
 
   List<BmOutgoing> makeSetCapabilities(
     ffi.Pointer<ffi.Void> engine,

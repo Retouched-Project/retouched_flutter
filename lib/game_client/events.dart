@@ -115,12 +115,6 @@ extension GameClientEvents on GameClient {
     if (cfg.orientationIntervalMs != null) {
       _sensors.setOrientationIntervalMs(cfg.orientationIntervalMs!);
     }
-    if (cfg.accelIntervalMs != null) {
-      _sensors.setAccelIntervalMs(cfg.accelIntervalMs!);
-    }
-    if (cfg.gyroIntervalMs != null) {
-      _sensors.setGyroIntervalMs(cfg.gyroIntervalMs!);
-    }
   }
 
   Future<void> _waitForRegister({

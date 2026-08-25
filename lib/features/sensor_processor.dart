@@ -25,12 +25,7 @@ class SensorProcessor {
   List<double>? _orientationBaselineInv;
 
   int _orientationIntervalMs = 100;
-  int _lastOrientationSentAt = 0;
   bool _orientationEnabled = false;
-  int _accelIntervalMs = 100;
-  int _gyroIntervalMs = 100;
-  int _lastAccelSentAt = 0;
-  int _lastGyroSentAt = 0;
 
   ffi.Pointer<ffi.Void> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
@@ -45,16 +40,19 @@ class SensorProcessor {
           samplingPeriod: SensorInterval.gameInterval,
         ).listen((event) {
           _lastAccel = event;
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final aligned = gridAlign(now, _lastAccelSentAt, _accelIntervalMs);
-          if (aligned < 0) return;
-          _lastAccelSentAt = aligned;
+          final gameDeviceId = getActiveGameDeviceId?.call();
+          if (gameDeviceId == null) return;
           final x = event.x / -9.80665;
           final y = event.y / -9.80665;
           final z = event.z / -9.80665;
-          final gameDeviceId = getActiveGameDeviceId?.call();
-          if (gameDeviceId == null) return;
-          final actions = _lib.makeAccel(getEngine!(), gameDeviceId, x, y, z);
+          final actions = _lib.makeAccel(
+            getEngine!(),
+            gameDeviceId,
+            x,
+            y,
+            z,
+            DateTime.now().millisecondsSinceEpoch,
+          );
           sendActions?.call(actions);
         });
   }
@@ -83,10 +81,6 @@ class SensorProcessor {
     if (_gyroSub != null) return;
     _gyroSub = gyroscopeEventStream(samplingPeriod: SensorInterval.gameInterval)
         .listen((event) {
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final aligned = gridAlign(now, _lastGyroSentAt, _gyroIntervalMs);
-          if (aligned < 0) return;
-          _lastGyroSentAt = aligned;
           final gameDeviceId = getActiveGameDeviceId?.call();
           if (gameDeviceId == null) return;
           final actions = _lib.makeGyro(
@@ -95,6 +89,7 @@ class SensorProcessor {
             event.x,
             event.y,
             event.z,
+            DateTime.now().millisecondsSinceEpoch,
           );
           sendActions?.call(actions);
         });
@@ -135,15 +130,6 @@ class SensorProcessor {
     final dz = iw * qz + ix * qy - iy * qx + iz * qw;
     final dw = iw * qw - ix * qx - iy * qy - iz * qz;
 
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final aligned = gridAlign(
-      now,
-      _lastOrientationSentAt,
-      _orientationIntervalMs,
-    );
-    if (aligned < 0) return;
-    _lastOrientationSentAt = aligned;
-
     final gameDeviceId = getActiveGameDeviceId?.call();
     if (gameDeviceId == null) return;
     final actions = _lib.makeOrientation(
@@ -153,6 +139,7 @@ class SensorProcessor {
       dy,
       dz,
       dw,
+      DateTime.now().millisecondsSinceEpoch,
     );
     sendActions?.call(actions);
   }
@@ -178,6 +165,7 @@ class SensorProcessor {
           quat[1],
           quat[2],
           quat[3],
+          DateTime.now().millisecondsSinceEpoch,
         );
         sendActions?.call(actions);
       },
@@ -190,15 +178,6 @@ class SensorProcessor {
     _orientationTimer?.cancel();
     _orientationTimer = null;
     _orientationBaselineInv = null;
-    _lastOrientationSentAt = 0;
-  }
-
-  void setAccelIntervalMs(int ms) {
-    _accelIntervalMs = ms;
-  }
-
-  void setGyroIntervalMs(int ms) {
-    _gyroIntervalMs = ms;
   }
 
   bool get orientationEnabled => _orientationEnabled;
@@ -246,27 +225,11 @@ class SensorProcessor {
   }
 
   /// Stops all streams and restores defaults so the next game session starts
-  /// clean (a different game may request different intervals or sensors).
+  /// clean (a different game may request different sensors).
   void reset() {
     stopAll();
-    _accelIntervalMs = 100;
-    _gyroIntervalMs = 100;
     _orientationIntervalMs = 100;
     _orientationEnabled = false;
-    _lastAccelSentAt = 0;
-    _lastGyroSentAt = 0;
-    _lastOrientationSentAt = 0;
-  }
-
-  static int gridAlign(int now, int lastDispatch, int intervalMs) {
-    final nextAt = lastDispatch + intervalMs;
-    if (now >= nextAt) {
-      if (intervalMs > 0) {
-        return (((now - nextAt) ~/ intervalMs) * intervalMs) + nextAt;
-      }
-      return now;
-    }
-    return -1;
   }
 
   List<double> _computeQuaternion(
