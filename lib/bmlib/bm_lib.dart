@@ -841,6 +841,23 @@ class BmLib {
     'nav': nav,
   }).outgoings;
 
+  /// Reports what fingers did. The engine keeps the set they add up to and
+  /// sends it at the game's cadence, so a batch offered before its turn comes
+  /// back with nothing to send and [BmProcessOutput.nextSendMs] naming the
+  /// moment to try again.
+  BmProcessOutput makeTouchEvents(
+    ffi.Pointer<ffi.Void> engine,
+    String targetId,
+    List<BmTouchEvent> events,
+    int nowMs,
+  ) => emit(engine, {
+    'type': 'TouchEvent',
+    'target': targetId,
+    'events': events.map((e) => e.toWire()).toList(),
+  }, nowMs: nowMs);
+
+  /// Sends a set the caller assembled itself, unbatched. For input that does
+  /// not arrive as a pointer stream.
   List<BmOutgoing> makeTouchSet(
     ffi.Pointer<ffi.Void> engine,
     String targetId,

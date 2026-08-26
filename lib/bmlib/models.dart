@@ -110,6 +110,59 @@ class TouchPointData {
   };
 }
 
+/// Stationary is absent on purpose: the engine reaches it once a set has gone,
+/// and a caller never observes it.
+enum BmTouchPhase {
+  began('Began'),
+  moved('Moved'),
+  ended('Ended'),
+  cancelled('Cancelled');
+
+  const BmTouchPhase(this.wireName);
+  final String wireName;
+}
+
+sealed class BmTouchEvent {
+  const BmTouchEvent();
+  Map<String, dynamic> toWire();
+}
+
+class BmPointerEvent extends BmTouchEvent {
+  final int id;
+  final double x;
+  final double y;
+  final BmTouchPhase phase;
+  final int screenWidth;
+  final int screenHeight;
+
+  const BmPointerEvent({
+    required this.id,
+    required this.x,
+    required this.y,
+    required this.phase,
+    required this.screenWidth,
+    required this.screenHeight,
+  });
+
+  @override
+  Map<String, dynamic> toWire() => {
+    'type': 'Pointer',
+    'id': id,
+    'x': x,
+    'y': y,
+    'phase': phase.wireName,
+    'screen_width': screenWidth,
+    'screen_height': screenHeight,
+  };
+}
+
+class BmCancelAllTouches extends BmTouchEvent {
+  const BmCancelAllTouches();
+
+  @override
+  Map<String, dynamic> toWire() => {'type': 'CancelAll'};
+}
+
 /// Which path an outgoing message is built for, and where that path leads.
 class BmVia {
   final bool datagram;
