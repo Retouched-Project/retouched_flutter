@@ -267,7 +267,6 @@ extension GameClientConnection on GameClient {
         _engine!,
         dg.data,
         source: dg.address.address,
-        sourcePort: dg.port,
         datagram: true,
       ),
     );

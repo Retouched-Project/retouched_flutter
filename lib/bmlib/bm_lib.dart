@@ -662,7 +662,6 @@ class BmLib {
     ffi.Pointer<ffi.Void> engine,
     Uint8List data, {
     String? source,
-    int sourcePort = 0,
     bool datagram = false,
     int? nowMs,
   }) {
@@ -670,7 +669,6 @@ class BmLib {
         ? Uint8List(0)
         : mp.serialize({
             'source': source,
-            'source_port': sourcePort,
             'datagram': datagram,
             'now_ms': nowMs,
           });
