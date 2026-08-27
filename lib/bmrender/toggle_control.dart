@@ -51,8 +51,7 @@ class ToggleControl implements ControlDrawable, HitTarget {
           'UpBitmap=${upBmp?.width}x${upBmp?.height}, DownBitmap=${downBmp?.width}x${downBmp?.height}',
         );
         if (!_active) {
-          _hasLoggedDebug =
-              true;
+          _hasLoggedDebug = true;
         }
       }
     }

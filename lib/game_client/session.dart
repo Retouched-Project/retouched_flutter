@@ -9,14 +9,13 @@ extension GameClientSession on GameClient {
     _udpWarned = false;
     _assembler?.reset();
     _currentScheme = null;
-    _touchEnabled = null;
     _lastControlConfig = null;
     _lastProgress = null;
     if (!_progressC.isClosed) {
       _progressC.add(0.0);
     }
     _sensors.reset();
-    _touch.reset();
+    _stopEngineTimer();
   }
 
   Future<void> connectToGame(BmRegistryInfo game) async {

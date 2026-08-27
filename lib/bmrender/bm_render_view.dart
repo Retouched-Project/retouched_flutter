@@ -18,11 +18,11 @@ class BMRenderView extends StatefulWidget {
   final void Function(String handler, bool pressed)? onButton;
   final void Function(int x, int y)? onDpad;
   final void Function(
-    List<ControlTouchPoint> touches,
+    ControlTouchPoint touch,
     int screenWidth,
     int screenHeight,
   )?
-  onTouchSet;
+  onTouchEvent;
   final bool floatingDpadEnabled;
   final bool smartWidescreenEnabled;
   final bool preserveDpadDragEnabled;
@@ -35,7 +35,7 @@ class BMRenderView extends StatefulWidget {
     required this.scheme,
     this.onButton,
     this.onDpad,
-    this.onTouchSet,
+    this.onTouchEvent,
     this.floatingDpadEnabled = true,
     this.smartWidescreenEnabled = false,
     this.preserveDpadDragEnabled = false,
@@ -50,7 +50,6 @@ class _BMRenderViewState extends State<BMRenderView>
     implements SelectionController {
   static final _log = Logger('retouched.BMRenderView');
 
-  final Map<int, ControlTouchPoint> _touches = {};
   final Map<int, Offset> _pointerPositions = {};
 
   late ControlViewBuilder _builder;
@@ -386,32 +385,18 @@ class _BMRenderViewState extends State<BMRenderView>
   }
 
   void _handleTouchEvent(int id, Offset pos, int state) {
-    if (!widget.scheme.isTouchEnabled() || widget.onTouchSet == null) return;
-    _touches[id] = ControlTouchPoint(
-      id: id,
-      x: pos.dx,
-      y: pos.dy,
-      state: state,
-    );
-    final touches = _touches.values.toList(growable: false);
+    if (widget.onTouchEvent == null) return;
 
     int w = widget.scheme.getWidth();
     int h = widget.scheme.getHeight();
     if (w <= 0) w = _rotated ? _baseH.round() : _baseW.round();
     if (h <= 0) h = _rotated ? _baseW.round() : _baseH.round();
 
-    widget.onTouchSet?.call(touches, w, h);
-
-    if (state == TouchStateCodes.ended || state == TouchStateCodes.cancelled) {
-      _touches.remove(id);
-    } else if (state == TouchStateCodes.moved) {
-      _touches[id] = ControlTouchPoint(
-        id: id,
-        x: pos.dx,
-        y: pos.dy,
-        state: TouchStateCodes.stationary,
-      );
-    }
+    widget.onTouchEvent?.call(
+      ControlTouchPoint(id: id, x: pos.dx, y: pos.dy, state: state),
+      w,
+      h,
+    );
   }
 
   void _recalculateHits() {

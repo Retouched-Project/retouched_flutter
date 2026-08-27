@@ -100,9 +100,6 @@ extension GameClientEvents on GameClient {
     if (cfg.touchEnabled != null) {
       enableTouch(cfg.touchEnabled!);
     }
-    if (cfg.touchIntervalMs != null) {
-      _touch.touchIntervalMs = cfg.touchIntervalMs!;
-    }
     if (cfg.accelEnabled != null) {
       _sensors.enableAccelerometer(cfg.accelEnabled!);
     }
@@ -148,11 +145,7 @@ extension GameClientEvents on GameClient {
     final result = assembler.offer(action.setId, action.blob);
     if (!result.isUpdated || result.scheme == null) return;
     final scheme = ControlScheme.fromBuffer(result.scheme!);
-    // Re-apply the runtime touch-enable state; the assembler carries the
-    // initial scheme's touchEnabled, which would otherwise revert it.
-    if (_touchEnabled != null) {
-      scheme.touchEnabled = _touchEnabled!;
-    }
+    _lib.declareTouch(_engine!, scheme.isTouchEnabled());
     _currentScheme = scheme;
     if (result.initial) {
       final game = _activeGame;

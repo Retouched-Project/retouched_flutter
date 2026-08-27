@@ -20,10 +20,7 @@ class TextControlDrawable implements ControlDrawable {
 
   @override
   void draw(Canvas canvas) {
-    final textStyle = painting.TextStyle(
-      color: _color,
-      fontSize: _textSize,
-    );
+    final textStyle = painting.TextStyle(color: _color, fontSize: _textSize);
     final textSpan = painting.TextSpan(text: _text, style: textStyle);
     final textPainter = painting.TextPainter(
       text: textSpan,
@@ -32,7 +29,10 @@ class TextControlDrawable implements ControlDrawable {
     );
 
     textPainter.layout(minWidth: 0, maxWidth: _bounds.width);
-    textPainter.paint(canvas, Offset(_bounds.left, _bounds.bottom - textPainter.height));
+    textPainter.paint(
+      canvas,
+      Offset(_bounds.left, _bounds.bottom - textPainter.height),
+    );
   }
 
   @override

@@ -357,7 +357,7 @@ class _GameSessionPageState extends State<GameSessionPage>
                 scheme: _currentScheme!,
                 onButton: widget.client.handleButton,
                 onDpad: widget.client.handleDpad,
-                onTouchSet: widget.client.handleTouchSet,
+                onTouchEvent: widget.client.handleTouchEvent,
                 floatingDpadEnabled: widget.floatingDpadEnabled,
                 smartWidescreenEnabled: widget.smartWidescreenEnabled,
                 preserveDpadDragEnabled: widget.preserveDpadDragEnabled,

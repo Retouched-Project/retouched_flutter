@@ -3,6 +3,15 @@
 
 part of 'game_client.dart';
 
+/// Stationary has no entry: the engine reaches it once a set has gone, and the
+/// renderer never reports it.
+const Map<int, BmTouchPhase> _touchPhases = {
+  TouchStateCodes.began: BmTouchPhase.began,
+  TouchStateCodes.moved: BmTouchPhase.moved,
+  TouchStateCodes.ended: BmTouchPhase.ended,
+  TouchStateCodes.cancelled: BmTouchPhase.cancelled,
+};
+
 extension GameClientInput on GameClient {
   void handleButton(String handler, bool pressed) {
     final game = _activeGame;
@@ -37,12 +46,27 @@ extension GameClientInput on GameClient {
     _sendOutgoings(actions);
   }
 
-  void handleTouchSet(
-    List<ControlTouchPoint> touches,
+  void handleTouchEvent(
+    ControlTouchPoint touch,
     int screenWidth,
     int screenHeight,
   ) {
-    _touch.handleTouchSet(touches, screenWidth, screenHeight);
+    final game = _activeGame;
+    final phase = _touchPhases[touch.state];
+    if (game == null || phase == null) return;
+
+    final out = _lib.makeTouchEvents(_engine!, game.deviceId, [
+      BmPointerEvent(
+        id: touch.id,
+        x: touch.x,
+        y: touch.y,
+        phase: phase,
+        screenWidth: screenWidth,
+        screenHeight: screenHeight,
+      ),
+    ], DateTime.now().millisecondsSinceEpoch);
+    _sendOutgoings(out.outgoings);
+    _armEngineTimer(out.nextTimeMs);
   }
 
   void setScreenSize(int width, int height) {
@@ -54,7 +78,6 @@ extension GameClientInput on GameClient {
 
   void enableTouch(bool enabled) {
     _log.fine('enableTouch: $enabled');
-    _touchEnabled = enabled;
     if (_currentScheme != null) {
       _currentScheme!.touchEnabled = enabled;
       _schemeC.add(_currentScheme);

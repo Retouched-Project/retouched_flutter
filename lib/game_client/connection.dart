@@ -156,7 +156,7 @@ extension GameClientConnection on GameClient {
     await _gameServer?.close();
     _gameServer = null;
     _sensors.stopAll();
-    _touch.cancel();
+    _stopEngineTimer();
     _registryFramerInst?.dispose();
     _registryFramerInst = null;
     _gameFramerInst?.dispose();

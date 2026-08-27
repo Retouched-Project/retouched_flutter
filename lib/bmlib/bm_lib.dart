@@ -841,6 +841,10 @@ class BmLib {
     'nav': nav,
   }).outgoings;
 
+  void declareTouch(ffi.Pointer<ffi.Void> engine, bool enabled) {
+    emit(engine, {'type': 'DeclareTouch', 'enabled': enabled});
+  }
+
   /// Reports what fingers did. The engine keeps the set they add up to and
   /// sends it at the game's cadence, so a batch offered before its turn comes
   /// back with nothing to send and [BmProcessOutput.nextSendMs] naming the

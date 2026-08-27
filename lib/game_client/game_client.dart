@@ -12,9 +12,9 @@ import '../utils/device_info.dart';
 import '../bmlib/bm_lib.dart';
 import '../bmrender/controls/scheme.pb.dart';
 import '../bmrender/controls/scheme_extensions.dart';
-import '../bmrender/controls/touch_enums.dart' show ControlTouchPoint;
+import '../bmrender/controls/touch_enums.dart'
+    show ControlTouchPoint, TouchStateCodes;
 import '../features/sensor_processor.dart';
-import '../features/touch_processor.dart';
 import '../features/registry_client.dart';
 import '../features/capabilities.dart';
 import '../utils/metrics_service.dart';
@@ -135,14 +135,12 @@ class GameClient {
 
   BmSchemeAssembler? _assembler;
   ControlScheme? _currentScheme;
-  // Runtime touch-enable state from the enableTouch RPC. It is session state,
-  // not scheme content, so it is re-applied to every scheme the assembler emits
-  // (which carries the initial scheme's touchEnabled).
-  bool? _touchEnabled;
   GameControlConfig? _lastControlConfig;
   late final SensorProcessor _sensors;
-  late final TouchProcessor _touch;
   late final RegistryClient _registry;
+
+  Timer? _engineTimer;
+  int? _engineTimerDueAt;
   late final Capabilities _capabilities;
   ServerSocket? _policyServer;
   BmPolicySniffer? _gamePolicySnifferInst;
@@ -163,11 +161,6 @@ class GameClient {
     _sensors.getEngine = () => _engine!;
     _sensors.getActiveGameDeviceId = () => _activeGame?.deviceId;
     _sensors.sendActions = _sendOutgoings;
-
-    _touch = TouchProcessor(_lib);
-    _touch.getEngine = () => _engine!;
-    _touch.getActiveGameDeviceId = () => _activeGame?.deviceId;
-    _touch.sendActions = _sendOutgoings;
 
     _registry = RegistryClient();
     _registry.onGamesChanged = (games) {
