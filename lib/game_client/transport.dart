@@ -62,10 +62,12 @@ extension GameClientTransport on GameClient {
       _engineTimerDueAt = null;
       final engine = _engine;
       if (engine == null) return;
-      final out = _lib.handleTime(
-        engine,
-        DateTime.now().millisecondsSinceEpoch,
-      );
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (_touchQueue.isNotEmpty) {
+        _shipTouches(now);
+        return;
+      }
+      final out = _lib.handleTime(engine, now);
       _sendOutgoings(out.outgoings);
       _armEngineTimer(out.nextTimeMs);
     });
@@ -75,6 +77,8 @@ extension GameClientTransport on GameClient {
     _engineTimer?.cancel();
     _engineTimer = null;
     _engineTimerDueAt = null;
+    _touchQueue.clear();
+    _touchSendDueAt = null;
   }
 
   /// Releases what the engine held for a peer. Its outgoings are the notices

@@ -51,11 +51,10 @@ extension GameClientInput on GameClient {
     int screenWidth,
     int screenHeight,
   ) {
-    final game = _activeGame;
     final phase = _touchPhases[touch.state];
-    if (game == null || phase == null) return;
+    if (_activeGame == null || phase == null) return;
 
-    final out = _lib.makeTouchEvents(_engine!, game.deviceId, [
+    _touchQueue.add(
       BmPointerEvent(
         id: touch.id,
         x: touch.x,
@@ -64,7 +63,28 @@ extension GameClientInput on GameClient {
         screenWidth: screenWidth,
         screenHeight: screenHeight,
       ),
-    ], DateTime.now().millisecondsSinceEpoch);
+    );
+
+    // Offering these before the engine would take them only to be told no
+    // costs a crossing per finger per frame, so they wait for the moment it
+    // named. What they add up to is worked out there, not here.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final due = _touchSendDueAt;
+    if (due == null || now >= due) {
+      _shipTouches(now);
+    } else {
+      _armEngineTimer(due);
+    }
+  }
+
+  void _shipTouches(int nowMs) {
+    final game = _activeGame;
+    if (game == null || _touchQueue.isEmpty) return;
+
+    final events = List<BmTouchEvent>.of(_touchQueue);
+    _touchQueue.clear();
+    final out = _lib.makeTouchEvents(_engine!, game.deviceId, events, nowMs);
+    _touchSendDueAt = out.nextSendMs;
     _sendOutgoings(out.outgoings);
     _armEngineTimer(out.nextTimeMs);
   }

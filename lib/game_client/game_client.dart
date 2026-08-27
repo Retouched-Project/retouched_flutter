@@ -141,6 +141,11 @@ class GameClient {
 
   Timer? _engineTimer;
   int? _engineTimerDueAt;
+
+  // Held until the engine says it would take them. Appending is all this
+  // does: what the events mean is the engine's to work out.
+  final List<BmTouchEvent> _touchQueue = [];
+  int? _touchSendDueAt;
   late final Capabilities _capabilities;
   ServerSocket? _policyServer;
   BmPolicySniffer? _gamePolicySnifferInst;
