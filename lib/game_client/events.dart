@@ -6,6 +6,7 @@ part of 'game_client.dart';
 extension GameClientEvents on GameClient {
   void _handleOutput(BmProcessOutput output) {
     _sendOutgoings(output.outgoings);
+    _armEngineTimer(output.nextTimeMs);
     for (final event in output.events) {
       _handleEvent(event);
     }
@@ -145,7 +146,11 @@ extension GameClientEvents on GameClient {
     final result = assembler.offer(action.setId, action.blob);
     if (!result.isUpdated || result.scheme == null) return;
     final scheme = ControlScheme.fromBuffer(result.scheme!);
-    _lib.declareTouch(_engine!, scheme.isTouchEnabled());
+    _lib.declareTouch(
+      _engine!,
+      scheme.isTouchEnabled(),
+      DateTime.now().millisecondsSinceEpoch,
+    );
     _currentScheme = scheme;
     if (result.initial) {
       final game = _activeGame;

@@ -839,8 +839,8 @@ class BmLib {
     'nav': nav,
   }).outgoings;
 
-  void declareTouch(ffi.Pointer<ffi.Void> engine, bool enabled) {
-    emit(engine, {'type': 'DeclareTouch', 'enabled': enabled});
+  void declareTouch(ffi.Pointer<ffi.Void> engine, bool enabled, int nowMs) {
+    emit(engine, {'type': 'DeclareTouch', 'enabled': enabled}, nowMs: nowMs);
   }
 
   /// Reports what fingers did. The engine keeps the set they add up to and

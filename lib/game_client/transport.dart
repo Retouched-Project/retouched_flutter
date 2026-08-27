@@ -42,10 +42,25 @@ extension GameClientTransport on GameClient {
     }
   }
 
-  /// Wakes the engine when it said it had something owed. Rearming for a
-  /// moment already pending is skipped, so a stream of input does not rebuild
-  /// the timer on every event.
-  void _armEngineTimer(int? dueAt) {
+  /// Records what the engine says it has owed, then wakes for whichever comes
+  /// first: that, or a batch of touches waiting to be handed over. They are
+  /// separate deadlines and the engine only knows about its own.
+  void _armEngineTimer(int? engineDueAt) {
+    _engineDueAt = engineDueAt;
+    _rearmEngineTimer();
+  }
+
+  /// Rearming for a moment already pending is skipped, so a stream of input
+  /// does not rebuild the timer on every event.
+  void _rearmEngineTimer() {
+    final queueDueAt = _touchQueue.isEmpty ? null : _touchSendDueAt;
+    final dueAt = switch ((_engineDueAt, queueDueAt)) {
+      (int a, int b) => a < b ? a : b,
+      (int a, null) => a,
+      (null, int b) => b,
+      _ => null,
+    };
+
     if (dueAt == null) {
       _engineTimer?.cancel();
       _engineTimer = null;
@@ -77,6 +92,10 @@ extension GameClientTransport on GameClient {
     _engineTimer?.cancel();
     _engineTimer = null;
     _engineTimerDueAt = null;
+    _engineDueAt = null;
+  }
+
+  void _forgetQueuedTouches() {
     _touchQueue.clear();
     _touchSendDueAt = null;
   }

@@ -157,6 +157,7 @@ extension GameClientConnection on GameClient {
     _gameServer = null;
     _sensors.stopAll();
     _stopEngineTimer();
+    _forgetQueuedTouches();
     _registryFramerInst?.dispose();
     _registryFramerInst = null;
     _gameFramerInst?.dispose();
@@ -238,6 +239,7 @@ extension GameClientConnection on GameClient {
             _engine!,
             frame,
             source: _socket?.remoteAddress.address,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
           ),
         );
         continue;
@@ -268,6 +270,7 @@ extension GameClientConnection on GameClient {
         dg.data,
         source: dg.address.address,
         datagram: true,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
@@ -291,6 +294,7 @@ extension GameClientConnection on GameClient {
             _engine!,
             frame,
             source: _gameSocket?.remoteAddress.address,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
           ),
         );
         continue;

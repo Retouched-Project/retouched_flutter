@@ -16,6 +16,7 @@ extension GameClientSession on GameClient {
     }
     _sensors.reset();
     _stopEngineTimer();
+    _forgetQueuedTouches();
   }
 
   Future<void> connectToGame(BmRegistryInfo game) async {

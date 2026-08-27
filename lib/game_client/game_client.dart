@@ -141,6 +141,7 @@ class GameClient {
 
   Timer? _engineTimer;
   int? _engineTimerDueAt;
+  int? _engineDueAt;
 
   // Held until the engine says it would take them. Appending is all this
   // does: what the events mean is the engine's to work out.

@@ -73,7 +73,7 @@ extension GameClientInput on GameClient {
     if (due == null || now >= due) {
       _shipTouches(now);
     } else {
-      _armEngineTimer(due);
+      _rearmEngineTimer();
     }
   }
 
