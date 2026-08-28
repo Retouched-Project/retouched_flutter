@@ -18,6 +18,7 @@ import '../features/sensor_processor.dart';
 import '../features/registry_client.dart';
 import '../features/capabilities.dart';
 import '../utils/metrics_service.dart';
+import '../utils/scheme_dumper.dart';
 
 part 'connection.dart';
 part 'events.dart';

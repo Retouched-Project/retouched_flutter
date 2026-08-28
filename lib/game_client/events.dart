@@ -141,6 +141,14 @@ extension GameClientEvents on GameClient {
   }
 
   void _handleChunkComplete(BmEvent action) {
+    unawaited(
+      SchemeDumper.instance.save(
+        action.setId,
+        action.blob,
+        _activeGame?.appId ?? '',
+        _activeGame?.deviceName ?? '',
+      ),
+    );
     final assembler = _assembler;
     if (assembler == null) return;
     final result = assembler.offer(action.setId, action.blob);

@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/server_mgr.dart';
+import '../utils/scheme_dumper.dart';
 import '../game_client/game_client.dart';
 import '../bmlib/bm_lib.dart';
 import 'game_session_page.dart';
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage>
   bool _preserveDpadDragEnabled = false;
   int? _capabilitiesOverride;
   bool _smartWidescreenEnabled = false;
+  bool _dumpSchemesEnabled = false;
   int _connectionTimeoutSeconds = 5;
   ServerEntry? _lastServer;
   bool _inSession = false;
@@ -68,8 +70,10 @@ class _HomePageState extends State<HomePage>
         _capabilitiesOverride = prefs.getInt('capabilitiesOverride');
       }
       _smartWidescreenEnabled = prefs.getBool('smartWidescreen') ?? false;
+      _dumpSchemesEnabled = prefs.getBool(SchemeDumper.prefKey) ?? false;
       _connectionTimeoutSeconds = prefs.getInt('connectionTimeoutSeconds') ?? 5;
     });
+    SchemeDumper.instance.enabled = _dumpSchemesEnabled;
   }
 
   Future<void> _saveSettings() async {
@@ -82,6 +86,7 @@ class _HomePageState extends State<HomePage>
       await prefs.remove('capabilitiesOverride');
     }
     await prefs.setBool('smartWidescreen', _smartWidescreenEnabled);
+    await prefs.setBool(SchemeDumper.prefKey, _dumpSchemesEnabled);
     await prefs.setInt('connectionTimeoutSeconds', _connectionTimeoutSeconds);
   }
 
@@ -309,6 +314,7 @@ class _HomePageState extends State<HomePage>
                 floatingDpadEnabled: _floatingDpadEnabled,
                 preserveDpadDragEnabled: _preserveDpadDragEnabled,
                 smartWidescreenEnabled: _smartWidescreenEnabled,
+                dumpSchemesEnabled: _dumpSchemesEnabled,
                 capabilitiesOverride: _capabilitiesOverride,
                 connectionTimeoutSeconds: _connectionTimeoutSeconds,
                 onFloatingDpadChanged: (v) {
@@ -321,6 +327,11 @@ class _HomePageState extends State<HomePage>
                 },
                 onSmartWidescreenChanged: (v) {
                   setState(() => _smartWidescreenEnabled = v);
+                  _saveSettings();
+                },
+                onDumpSchemesChanged: (v) {
+                  setState(() => _dumpSchemesEnabled = v);
+                  SchemeDumper.instance.enabled = v;
                   _saveSettings();
                 },
                 onCapabilitiesOverrideChanged: (v) {
