@@ -44,7 +44,7 @@ class SchemeDumper {
         _log.fine('$game: already have ${_clean(setId)} $hash');
         return;
       }
-      final ext = blob.first == 0x3c ? 'xml' : 'bin';
+      final ext = _looksXml(blob) ? 'xml' : 'bin';
       final name = '${_clean(setId)}_${folder.seq++}_$hash.$ext';
       await File('${folder.dir.path}/$name').writeAsBytes(blob, flush: true);
       _log.info('$game/$name, ${blob.length} bytes');
@@ -153,6 +153,16 @@ class SchemeDumper {
 
   static String _clean(String s) =>
       s.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '_');
+
+  /// Some endpoints put a UTF-8 BOM in front of the declaration, so the first
+  /// byte alone does not tell you whether a document is text.
+  static bool _looksXml(List<int> blob) {
+    final start =
+        blob.length >= 3 && blob[0] == 0xEF && blob[1] == 0xBB && blob[2] == 0xBF
+        ? 3
+        : 0;
+    return blob.length > start && blob[start] == 0x3c;
+  }
 
   /// FNV-1a, should be enough to tell two schemes apart without
   /// pulling in a hash dependency.
