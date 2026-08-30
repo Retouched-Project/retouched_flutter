@@ -28,6 +28,7 @@ class ControlScheme extends $pb.GeneratedMessage {
     $core.Iterable<DisplayObject>? displayObjects,
     $core.Iterable<ContextMenuOption>? options,
     $core.Iterable<$core.int>? changedResources,
+    $core.String? sample,
   }) {
     final result = create();
     if (version != null) result.version = version;
@@ -42,6 +43,7 @@ class ControlScheme extends $pb.GeneratedMessage {
     if (options != null) result.options.addAll(options);
     if (changedResources != null)
       result.changedResources.addAll(changedResources);
+    if (sample != null) result.sample = sample;
     return result;
   }
 
@@ -72,6 +74,7 @@ class ControlScheme extends $pb.GeneratedMessage {
         subBuilder: ContextMenuOption.create)
     ..p<$core.int>(
         10, _omitFieldNames ? '' : 'changedResources', $pb.PbFieldType.K3)
+    ..aOS(11, _omitFieldNames ? '' : 'sample')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -156,23 +159,29 @@ class ControlScheme extends $pb.GeneratedMessage {
   @$pb.TagNumber(9)
   $pb.PbList<ContextMenuOption> get options => $_getList(8);
 
-  /// Ids of the resources the most recent update carried, which are the only
-  /// ones whose bitmap data can have changed. A merged scheme repeats every
-  /// resource it has ever seen, so without this a renderer cannot tell which
-  /// bitmaps need decoding again. Empty on a scheme that came straight from the
-  /// parser; every id on an initial scheme.
   @$pb.TagNumber(10)
   $pb.PbList<$core.int> get changedResources => $_getList(9);
+
+  @$pb.TagNumber(11)
+  $core.String get sample => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set sample($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasSample() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearSample() => $_clearField(11);
 }
 
 class AppResource extends $pb.GeneratedMessage {
   factory AppResource({
     $core.int? id,
     $core.List<$core.int>? bitmap,
+    $core.String? type,
   }) {
     final result = create();
     if (id != null) result.id = id;
     if (bitmap != null) result.bitmap = bitmap;
+    if (type != null) result.type = type;
     return result;
   }
 
@@ -192,6 +201,7 @@ class AppResource extends $pb.GeneratedMessage {
     ..aI(1, _omitFieldNames ? '' : 'id')
     ..a<$core.List<$core.int>>(
         2, _omitFieldNames ? '' : 'bitmap', $pb.PbFieldType.OY)
+    ..aOS(3, _omitFieldNames ? '' : 'type')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -230,6 +240,15 @@ class AppResource extends $pb.GeneratedMessage {
   $core.bool hasBitmap() => $_has(1);
   @$pb.TagNumber(2)
   void clearBitmap() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get type => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set type($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearType() => $_clearField(3);
 }
 
 class DisplayObject extends $pb.GeneratedMessage {
@@ -254,6 +273,7 @@ class DisplayObject extends $pb.GeneratedMessage {
     $core.double? deadzone,
     $core.bool? radial,
     $core.Iterable<ControlAsset>? assets,
+    $core.String? name,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -276,6 +296,7 @@ class DisplayObject extends $pb.GeneratedMessage {
     if (deadzone != null) result.deadzone = deadzone;
     if (radial != null) result.radial = radial;
     if (assets != null) result.assets.addAll(assets);
+    if (name != null) result.name = name;
     return result;
   }
 
@@ -313,6 +334,7 @@ class DisplayObject extends $pb.GeneratedMessage {
     ..aOB(19, _omitFieldNames ? '' : 'radial')
     ..pPM<ControlAsset>(20, _omitFieldNames ? '' : 'assets',
         subBuilder: ControlAsset.create)
+    ..aOS(21, _omitFieldNames ? '' : 'name')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -507,6 +529,15 @@ class DisplayObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(20)
   $pb.PbList<ControlAsset> get assets => $_getList(19);
+
+  @$pb.TagNumber(21)
+  $core.String get name => $_getSZ(20);
+  @$pb.TagNumber(21)
+  set name($core.String value) => $_setString(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasName() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearName() => $_clearField(21);
 }
 
 class ControlAsset extends $pb.GeneratedMessage {

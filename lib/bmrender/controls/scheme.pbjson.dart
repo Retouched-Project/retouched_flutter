@@ -62,6 +62,7 @@ const ControlScheme$json = {
       '5': 5,
       '10': 'changedResources'
     },
+    {'1': 'sample', '3': 11, '4': 1, '5': 9, '10': 'sample'},
   ],
 };
 
@@ -74,7 +75,8 @@ final $typed_data.Uint8List controlSchemeDescriptor = $convert.base64Decode(
     'ZXMYByADKAsyFS5jb250cm9scy5BcHBSZXNvdXJjZVIJcmVzb3VyY2VzEkAKD2Rpc3BsYXlfb2'
     'JqZWN0cxgIIAMoCzIXLmNvbnRyb2xzLkRpc3BsYXlPYmplY3RSDmRpc3BsYXlPYmplY3RzEjUK'
     'B29wdGlvbnMYCSADKAsyGy5jb250cm9scy5Db250ZXh0TWVudU9wdGlvblIHb3B0aW9ucxIrCh'
-    'FjaGFuZ2VkX3Jlc291cmNlcxgKIAMoBVIQY2hhbmdlZFJlc291cmNlcw==');
+    'FjaGFuZ2VkX3Jlc291cmNlcxgKIAMoBVIQY2hhbmdlZFJlc291cmNlcxIWCgZzYW1wbGUYCyAB'
+    'KAlSBnNhbXBsZQ==');
 
 @$core.Deprecated('Use appResourceDescriptor instead')
 const AppResource$json = {
@@ -82,12 +84,14 @@ const AppResource$json = {
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
     {'1': 'bitmap', '3': 2, '4': 1, '5': 12, '10': 'bitmap'},
+    {'1': 'type', '3': 3, '4': 1, '5': 9, '10': 'type'},
   ],
 };
 
 /// Descriptor for `AppResource`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List appResourceDescriptor = $convert.base64Decode(
-    'CgtBcHBSZXNvdXJjZRIOCgJpZBgBIAEoBVICaWQSFgoGYml0bWFwGAIgASgMUgZiaXRtYXA=');
+    'CgtBcHBSZXNvdXJjZRIOCgJpZBgBIAEoBVICaWQSFgoGYml0bWFwGAIgASgMUgZiaXRtYXASEg'
+    'oEdHlwZRgDIAEoCVIEdHlwZQ==');
 
 @$core.Deprecated('Use displayObjectDescriptor instead')
 const DisplayObject$json = {
@@ -120,6 +124,7 @@ const DisplayObject$json = {
       '6': '.controls.ControlAsset',
       '10': 'assets'
     },
+    {'1': 'name', '3': 21, '4': 1, '5': 9, '10': 'name'},
   ],
 };
 
@@ -135,7 +140,7 @@ final $typed_data.Uint8List displayObjectDescriptor = $convert.base64Decode(
     'h0ZXh0U2l6ZRIUCgVjb2xvchgQIAEoBVIFY29sb3ISIwoNc2FtcGxpbmdfbW9kZRgRIAEoCVIM'
     'c2FtcGxpbmdNb2RlEhoKCGRlYWR6b25lGBIgASgCUghkZWFkem9uZRIWCgZyYWRpYWwYEyABKA'
     'hSBnJhZGlhbBIuCgZhc3NldHMYFCADKAsyFi5jb250cm9scy5Db250cm9sQXNzZXRSBmFzc2V0'
-    'cw==');
+    'cxISCgRuYW1lGBUgASgJUgRuYW1l');
 
 @$core.Deprecated('Use controlAssetDescriptor instead')
 const ControlAsset$json = {
