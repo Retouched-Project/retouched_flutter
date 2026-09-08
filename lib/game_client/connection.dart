@@ -42,7 +42,7 @@ extension GameClientConnection on GameClient {
       );
       _applySessionInputs(0);
 
-      _lib.declarePeer(
+      _lib.peerReachable(
         _engine!,
         serverDeviceId,
         serverDeviceName,

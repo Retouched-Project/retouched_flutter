@@ -59,16 +59,6 @@ class BmLib {
         bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
       >('bm_engine_init_local_device');
 
-  late final _declarePeer = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-        ),
-        bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
-      >('bm_engine_declare_peer');
-
   late final _configure = _lib
       .lookupFunction<
         ffi.Bool Function(
@@ -575,29 +565,26 @@ class BmLib {
     _callIn(core, (ptr, len) => _initLocalDevice(engine, ptr, len));
   }
 
-  /// Tells the engine about a peer it could not have learned about on its own,
-  /// at an address known out of band.
-  void declarePeer(
+  BmProcessOutput peerReachable(
     ffi.Pointer<ffi.Void> engine,
     String deviceId,
     String deviceName,
     int deviceType,
     String address,
     int unreliablePort,
-    int reliablePort,
-  ) {
-    final core = mp.serialize(
-      _deviceCoreWire(
-        deviceId,
-        deviceName,
-        deviceType,
-        address,
-        unreliablePort,
-        reliablePort,
-      ),
-    );
-    _callIn(core, (ptr, len) => _declarePeer(engine, ptr, len));
-  }
+    int reliablePort, {
+    int? nowMs,
+  }) => emit(engine, {
+    'type': 'PeerReachable',
+    'device': _deviceCoreWire(
+      deviceId,
+      deviceName,
+      deviceType,
+      address,
+      unreliablePort,
+      reliablePort,
+    ),
+  }, nowMs: nowMs);
 
   /// Everything the engine is told about itself. Pass the whole of it whenever
   /// any of it changes; the engine holds nothing over from a previous call.
