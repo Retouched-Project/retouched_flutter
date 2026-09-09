@@ -142,7 +142,7 @@ class _GameSessionPageState extends State<GameSessionPage>
 
   void _applyOrientationForMode() {
     final mode = _controlConfig?.mode;
-    if (mode == 'Navigation' || mode == 'Wait') {
+    if (mode == 'Keyboard' || mode == 'Navigation' || mode == 'Wait') {
       _applyOrientation(ControlOrientation.portrait);
     } else {
       _applyOrientation(_effectiveOrientation(_currentScheme));

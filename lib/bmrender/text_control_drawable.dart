@@ -28,11 +28,11 @@ class TextControlDrawable implements ControlDrawable {
       textAlign: TextAlign.left,
     );
 
-    textPainter.layout(minWidth: 0, maxWidth: _bounds.width);
-    textPainter.paint(
-      canvas,
-      Offset(_bounds.left, _bounds.bottom - textPainter.height),
+    textPainter.layout(minWidth: 0, maxWidth: double.infinity);
+    final baseline = textPainter.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
     );
+    textPainter.paint(canvas, Offset(_bounds.left, _bounds.bottom - baseline));
   }
 
   @override
@@ -58,7 +58,7 @@ class TextControlDrawable implements ControlDrawable {
 
   void setColor(int? color) {
     if (color != null) {
-      _color = Color(0xFF000000 | color);
+      _color = Color(color & 0xFFFFFFFF);
     } else {
       _color = const Color(0xFFFFFFFF);
     }
