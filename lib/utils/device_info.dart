@@ -3,6 +3,7 @@
 
 import 'dart:io' show Platform;
 import 'package:device_info_plus/device_info_plus.dart';
+import '../bmlib/codes.dart';
 
 final class DeviceInfo {
   static String generateAppId() {
@@ -10,9 +11,9 @@ final class DeviceInfo {
   }
 
   static int platformDeviceTypeCode() {
-    if (Platform.isAndroid) return 4;
-    if (Platform.isIOS) return 2;
-    return 0;
+    if (Platform.isAndroid) return DeviceTypeCodes.android;
+    if (Platform.isIOS) return DeviceTypeCodes.iphone;
+    return DeviceTypeCodes.palm;
   }
 
   Future<String> getDeviceName() async {
