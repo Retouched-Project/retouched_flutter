@@ -7,11 +7,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as mp;
-
 import 'bm_log.dart';
 import 'models.dart';
 
-export 'codes.dart';
 export 'models.dart';
 
 class BmLib {
@@ -547,7 +545,7 @@ class BmLib {
     ffi.Pointer<ffi.Void> engine,
     String deviceId,
     String deviceName,
-    int deviceType,
+    String deviceType,
     String address,
     int unreliablePort,
     int reliablePort,
@@ -569,7 +567,7 @@ class BmLib {
     ffi.Pointer<ffi.Void> engine,
     String deviceId,
     String deviceName,
-    int deviceType,
+    String deviceType,
     String address,
     int unreliablePort,
     int reliablePort, {
@@ -594,7 +592,7 @@ class BmLib {
   bool configure(
     ffi.Pointer<ffi.Void> engine, {
     bool server = false,
-    EndpointMode? endpoint,
+    String? endpoint,
     bool opensSessions = true,
     bool gyroscope = false,
     bool orientation = false,
@@ -605,7 +603,7 @@ class BmLib {
   }) => _callIn(
     mp.serialize({
       'server': server,
-      'endpoint': endpoint?.code,
+      'endpoint': endpoint,
       'opens_sessions': opensSessions,
       'gyroscope': gyroscope,
       'orientation': orientation,
@@ -620,7 +618,7 @@ class BmLib {
   Map<String, dynamic> _deviceCoreWire(
     String id,
     String name,
-    int type,
+    String type,
     String addr,
     int uport,
     int rport,
@@ -956,15 +954,6 @@ class BmSchemeOffer {
 
   bool get isUpdated => kind == 2;
   bool get isNotScheme => kind == 0;
-}
-
-/// Which side of a session this engine plays. A server on its own takes neither.
-enum EndpointMode {
-  game(1),
-  controller(2);
-
-  const EndpointMode(this.code);
-  final int code;
 }
 
 /// Which side of a connection speaks first.

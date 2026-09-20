@@ -125,7 +125,7 @@ class GameClient {
   String? _deviceId;
   String? _deviceName;
   String? _appId;
-  int _deviceType = DeviceTypeCodes.palm;
+  String _deviceType = 'Palm';
 
   BmRegistryInfo? _selfInfo;
   BmRegistryInfo? _activeGame;

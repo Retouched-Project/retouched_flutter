@@ -24,7 +24,7 @@ class BmRegistryInfo {
   final String appId;
   final int? currentPlayers;
   final int? maxPlayers;
-  final int deviceType;
+  final String deviceType;
   final String deviceId;
   final String deviceName;
   final String address;
@@ -52,7 +52,7 @@ class BmRegistryInfo {
       appId: (m['app_id'] as String?) ?? '',
       currentPlayers: m['current_players'] as int?,
       maxPlayers: m['max_players'] as int?,
-      deviceType: (device['device_type'] as int?) ?? 0,
+      deviceType: (device['device_type'] as String?) ?? 'Any',
       deviceId: (device['device_id'] as String?) ?? '',
       deviceName: (device['device_name'] as String?) ?? '',
       address: (addr['address'] as String?) ?? '',
