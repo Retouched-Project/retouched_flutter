@@ -22,6 +22,7 @@ extension GameClientConnection on GameClient {
         onError: (e) {
           _safeCompleteError(_registry.registerCompleter, e);
           _safeComplete(_registry.listCompleter);
+          _onDone();
         },
         onDone: _onDone,
       );
@@ -131,6 +132,29 @@ extension GameClientConnection on GameClient {
     _sendOutgoings(actions);
   }
 
+  Future<bool> serverStillThere({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    if (_socket == null) return false;
+    final answered = Completer<void>();
+    _registry.listCompleter = answered;
+    var heard = false;
+    final timer = Timer(timeout, () => _safeComplete(answered));
+    try {
+      await requestList();
+      await answered.future;
+      heard = _registry.listCompleter == answered && timer.isActive;
+    } catch (_) {
+      heard = false;
+    }
+    timer.cancel();
+    _registry.listCompleter = null;
+    if (!heard) {
+      _onDone();
+    }
+    return heard;
+  }
+
   Future<List<String>> waitForList(Duration timeout) async {
     if (_registry.games.isNotEmpty) return _registry.games;
     _registry.listCompleter ??= Completer<void>();
@@ -141,6 +165,9 @@ extension GameClientConnection on GameClient {
   }
 
   Future<void> close() async {
+    // Switching servers means unleashing the tsar bomba!
+    // Kill everything, including a game session that somehow stayed open.
+    await _teardownGame();
     await _sub?.cancel();
     _sub = null;
     await _socket?.close();
@@ -149,10 +176,6 @@ extension GameClientConnection on GameClient {
     _udpSub = null;
     _udpSocket?.close();
     _udpSocket = null;
-    await _gameSub?.cancel();
-    _gameSub = null;
-    await _gameSocket?.close();
-    _gameSocket = null;
     await _gameServer?.close();
     _gameServer = null;
     _sensors.stopAll();
@@ -323,34 +346,9 @@ extension GameClientConnection on GameClient {
 
   void _onGameDone() {
     if (_gamePolicySnifferInst?.hungUp() ?? false) {
-      final sub = _gameSub;
-      _gameSub = null;
-      _gameSocket = null;
-      _gameFramer.reset();
-      _gameHandshakerInst?.reset();
-      if (sub != null) unawaited(sub.cancel());
+      unawaited(_closeGameLink());
       return;
     }
-
-    if (_activeGame != null) {
-      _tellEnginePeerGone(_activeGame!.deviceId);
-      MetricsService.send(
-        type: MetricsService.sessionEnd,
-        appId: _activeGame!.appId,
-        serverIp: server.ip,
-        deviceId: _deviceId ?? '',
-      );
-    }
-    _activeGame = null;
-    _forgetGameSession();
-    if (!_schemeC.isClosed) {
-      _schemeC.add(null);
-    }
-    final sub = _gameSub;
-    _gameSub = null;
-    _gameSocket = null;
-    _gameFramer.reset();
-    _gameHandshakerInst?.reset();
-    if (sub != null) unawaited(sub.cancel());
+    unawaited(_teardownGame());
   }
 }

@@ -27,7 +27,7 @@ extension GameClientSession on GameClient {
     if (!_schemeC.isClosed) {
       _schemeC.add(null);
     }
-    await _listenForGame();
+    await _closeGameLink();
     final actions = _lib.makeDeviceConnectRequested(
       _engine!,
       serverDeviceId,
@@ -42,13 +42,36 @@ extension GameClientSession on GameClient {
     );
   }
 
-  Future<void> _listenForGame() async {
-    await _gameSub?.cancel();
+  Future<void> _closeGameLink() async {
+    final sub = _gameSub;
+    final socket = _gameSocket;
     _gameSub = null;
-    await _gameSocket?.close();
     _gameSocket = null;
     _gameFramer.reset();
     _gameHandshakerInst?.reset();
+    await sub?.cancel();
+    await socket?.close();
+  }
+
+  Future<void> _teardownGame() async {
+    final game = _activeGame;
+    if (game != null) {
+      MetricsService.send(
+        type: MetricsService.sessionEnd,
+        appId: game.appId,
+        serverIp: server.ip,
+        deviceId: _deviceId ?? '',
+      );
+      // The engine must be told the peer is gone,
+      // otherwise it would keep holding it
+      _tellEnginePeerGone(game.deviceId);
+    }
+    _activeGame = null;
+    _forgetGameSession();
+    if (!_schemeC.isClosed) {
+      _schemeC.add(null);
+    }
+    await _closeGameLink();
   }
 
   Future<void> _bindGameListeners() async {
@@ -99,20 +122,16 @@ extension GameClientSession on GameClient {
         socket.destroy();
         return;
       }
-      final staleSub = _gameSub;
-      final staleSocket = _gameSocket;
-      _gameSub = null;
-      _gameFramer.reset();
-      _gameHandshakerInst?.reset();
+      unawaited(_closeGameLink());
       // Every connection is watched from its first byte, and only there.
       _gamePolicySniffer.reset();
-      if (staleSub != null) unawaited(staleSub.cancel());
-      if (staleSocket != null) unawaited(staleSocket.close());
       socket.setOption(SocketOption.tcpNoDelay, true);
       _gameSocket = socket;
       _gameSub = socket.listen(
         _onGameData,
-        onError: (_) {},
+        // A reset ends the session as surely as a clean close, and waiting
+        // for a done that may not follow leaves the engine holding a peer.
+        onError: (_) => _onGameDone(),
         onDone: _onGameDone,
       );
     });
@@ -143,25 +162,5 @@ extension GameClientSession on GameClient {
     _sendOutgoings(actions);
   }
 
-  Future<void> disconnectGame() async {
-    if (_activeGame != null) {
-      MetricsService.send(
-        type: MetricsService.sessionEnd,
-        appId: _activeGame!.appId,
-        serverIp: server.ip,
-        deviceId: _deviceId ?? '',
-      );
-    }
-    _activeGame = null;
-    await _gameSub?.cancel();
-    _gameSub = null;
-    await _gameSocket?.close();
-    _gameSocket = null;
-    _gameFramer.reset();
-    _gameHandshakerInst?.reset();
-    _forgetGameSession();
-    if (!_schemeC.isClosed) {
-      _schemeC.add(null);
-    }
-  }
+  Future<void> disconnectGame() => _teardownGame();
 }

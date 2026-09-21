@@ -54,11 +54,15 @@ class _HomePageState extends State<HomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _client == null &&
-        _lastServer != null) {
-      _connectToServer(_lastServer!);
+    if (state != AppLifecycleState.resumed) return;
+    final client = _client;
+    if (client == null) {
+      if (_lastServer != null) {
+        _connectToServer(_lastServer!);
+      }
+      return;
     }
+    unawaited(client.serverStillThere());
   }
 
   Future<void> _loadSettings() async {
