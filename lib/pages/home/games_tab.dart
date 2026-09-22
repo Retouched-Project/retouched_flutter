@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 ddavef/KinteLiX retouched_flutter
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -118,40 +119,26 @@ class GamesTab extends StatelessWidget {
     );
   }
 
+  static const List<Color> _slotColors = [
+    Color(0xFFFF6600),
+    Color(0xFFFFCC00),
+    Color(0xFFFF3399),
+    Color(0xFFFF0066),
+    Color(0xFFCC00FF),
+    Color(0xFF999900),
+    Color(0xFF9999CC),
+    Color(0xFF00CC99),
+    Color(0xFF009900),
+    Color(0xFF00CCFF),
+    Color(0xFF003366),
+    Color(0xFF99FF00),
+    Color(0xFFCC0000),
+    Color(0xFF80CD68),
+    Color(0xFF6600FF),
+  ];
+
   Color _slotColor(int slotId) {
-    switch (slotId) {
-      case 1:
-        return const Color(0xFFFF6900);
-      case 2:
-        return const Color(0xFFFED000);
-      case 3:
-        return const Color(0xFFFF2C9B);
-      case 4:
-        return const Color(0xFFFF0066);
-      case 5:
-        return const Color(0xFFD500FF);
-      case 6:
-        return const Color(0xFF969C00);
-      case 7:
-        return const Color(0xFF9B96CE);
-      case 8:
-        return const Color(0xFF00CD97);
-      case 9:
-        return const Color(0xFF009B00);
-      case 10:
-        return const Color(0xFF00C9FF);
-      case 11:
-        return const Color(0xFF112F68);
-      case 12:
-        return const Color(0xFF8AFF00);
-      case 13:
-        return const Color(0xFFD01300);
-      case 14:
-        return const Color(0xFF76D061);
-      case 15:
-        return const Color(0xFF7400FF);
-      default:
-        return const Color(0xFF666666);
-    }
+    final index = (math.max(1, slotId) - 1) % _slotColors.length;
+    return _slotColors[index];
   }
 }
