@@ -6,7 +6,7 @@ part of 'game_client.dart';
 extension GameClientConnection on GameClient {
   void setCapabilitiesOverride(int? mask) {
     _capabilities.setOverride(mask);
-    _capabilities.get().then(_applySessionInputs);
+    _capabilities.get().then(_updateSessionInputs);
   }
 
   Future<void> connect({Duration timeout = const Duration(seconds: 5)}) async {
@@ -58,7 +58,7 @@ extension GameClientConnection on GameClient {
       await _waitForRegister(timeout: timeout);
 
       await requestList();
-      _capabilities.get().then(_applySessionInputs);
+      _capabilities.get().then(_updateSessionInputs);
     } catch (_) {
       await close();
       rethrow;
@@ -79,6 +79,14 @@ extension GameClientConnection on GameClient {
       screenHeight: _screenHeight,
       datagrams: true,
     );
+  }
+
+  void _updateSessionInputs(int capabilities) {
+    try {
+      _applySessionInputs(capabilities);
+    } on BmError catch (e) {
+      _log.severe('The engine refused the session inputs: $e');
+    }
   }
 
   Future<String> _determineLocalHost() async {

@@ -188,10 +188,11 @@ class BmLib {
         reliablePort,
       ),
     );
-    _callIn(
+    final ok = _callIn(
       core,
       (ptr, len) => bm.bm_engine_init_local_device(engine, ptr, len),
     );
+    if (!ok) throw BmError(_takeLastError());
   }
 
   BmProcessOutput peerReachable(
@@ -220,7 +221,7 @@ class BmLib {
   ///
   /// A controller that opens its own sessions needs a screen, since it asks a
   /// game for a scheme to fit it.
-  bool configure(
+  void configure(
     ffi.Pointer<Engine> engine, {
     bool server = false,
     EndpointMode? endpoint,
@@ -231,20 +232,23 @@ class BmLib {
     int screenHeight = 0,
     bool approvesRegistrations = true,
     bool datagrams = false,
-  }) => _callIn(
-    mp.serialize({
-      'server': server,
-      'endpoint': endpoint?.value,
-      'opens_sessions': opensSessions,
-      'gyroscope': gyroscope,
-      'orientation': orientation,
-      'screen_width': screenWidth,
-      'screen_height': screenHeight,
-      'approves_registrations': approvesRegistrations,
-      'datagrams': datagrams,
-    }),
-    (ptr, len) => bm.bm_engine_configure(engine, ptr, len),
-  );
+  }) {
+    final ok = _callIn(
+      mp.serialize({
+        'server': server,
+        'endpoint': endpoint?.value,
+        'opens_sessions': opensSessions,
+        'gyroscope': gyroscope,
+        'orientation': orientation,
+        'screen_width': screenWidth,
+        'screen_height': screenHeight,
+        'approves_registrations': approvesRegistrations,
+        'datagrams': datagrams,
+      }),
+      (ptr, len) => bm.bm_engine_configure(engine, ptr, len),
+    );
+    if (!ok) throw BmError(_takeLastError());
+  }
 
   Map<String, dynamic> _deviceCoreWire(
     String id,
