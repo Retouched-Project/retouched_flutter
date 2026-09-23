@@ -3,14 +3,8 @@
 
 part of 'game_client.dart';
 
-/// Stationary has no entry: the engine reaches it once a set has gone, and the
-/// renderer never reports it.
-const Map<int, BmTouchPhase> _touchPhases = {
-  TouchStateCodes.began: BmTouchPhase.began,
-  TouchStateCodes.moved: BmTouchPhase.moved,
-  TouchStateCodes.ended: BmTouchPhase.ended,
-  TouchStateCodes.cancelled: BmTouchPhase.cancelled,
-};
+TouchPhase? _phaseOf(int state) =>
+    TouchPhase.values.where((phase) => phase.value == state).firstOrNull;
 
 extension GameClientInput on GameClient {
   void handleButton(String handler, bool pressed) {
@@ -51,7 +45,7 @@ extension GameClientInput on GameClient {
     int screenWidth,
     int screenHeight,
   ) {
-    final phase = _touchPhases[touch.state];
+    final phase = _phaseOf(touch.state);
     if (_activeGame == null || phase == null) return;
 
     _touchQueue.add(

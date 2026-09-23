@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../bmlib/bm_lib.dart' show ControlMode;
 import '../game_client/game_client.dart';
 import '../bmrender/controls/scheme.pb.dart';
 import '../bmrender/controls/scheme_extensions.dart';
@@ -142,7 +143,9 @@ class _GameSessionPageState extends State<GameSessionPage>
 
   void _applyOrientationForMode() {
     final mode = _controlConfig?.mode;
-    if (mode == 'Keyboard' || mode == 'Navigation' || mode == 'Wait') {
+    if (mode == ControlMode.Text ||
+        mode == ControlMode.Nav ||
+        mode == ControlMode.Wait) {
       _applyOrientation(ControlOrientation.portrait);
     } else {
       _applyOrientation(_effectiveOrientation(_currentScheme));
@@ -343,8 +346,8 @@ class _GameSessionPageState extends State<GameSessionPage>
 
     final mode = _controlConfig?.mode;
     final sliderLandscape =
-        mode != 'Navigation' &&
-        mode != 'Wait' &&
+        mode != ControlMode.Nav &&
+        mode != ControlMode.Wait &&
         _effectiveOrientation(_currentScheme) == ControlOrientation.landscape;
 
     return Scaffold(
@@ -364,7 +367,7 @@ class _GameSessionPageState extends State<GameSessionPage>
                 forceRotate: _whitelisted,
               ),
             ),
-            if (_controlConfig?.mode == 'Keyboard')
+            if (_controlConfig?.mode == ControlMode.Text)
               Positioned.fill(
                 child: KeyboardOverlay(
                   key: ValueKey(_controlConfig!.startString),
@@ -372,11 +375,11 @@ class _GameSessionPageState extends State<GameSessionPage>
                   onKey: widget.client.sendKeyString,
                 ),
               ),
-            if (_controlConfig?.mode == 'Navigation')
+            if (_controlConfig?.mode == ControlMode.Nav)
               Positioned.fill(
                 child: NavOverlay(onNav: widget.client.sendNavigation),
               ),
-            if (_controlConfig?.mode == 'Wait')
+            if (_controlConfig?.mode == ControlMode.Wait)
               const Positioned.fill(child: WaitOverlay()),
             Positioned(
               top: sliderLandscape ? 12 : 56,

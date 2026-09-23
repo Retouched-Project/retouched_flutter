@@ -158,7 +158,10 @@ class SchemeDumper {
   /// byte alone does not tell you whether a document is text.
   static bool _looksXml(List<int> blob) {
     final start =
-        blob.length >= 3 && blob[0] == 0xEF && blob[1] == 0xBB && blob[2] == 0xBF
+        blob.length >= 3 &&
+            blob[0] == 0xEF &&
+            blob[1] == 0xBB &&
+            blob[2] == 0xBF
         ? 3
         : 0;
     return blob.length > start && blob[start] == 0x3c;

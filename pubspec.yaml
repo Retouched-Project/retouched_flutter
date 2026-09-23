@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.4
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.10.0
 
 dependencies:
   flutter:
@@ -22,14 +22,24 @@ dependencies:
   protobuf: ^6.0.0
   logging: ^1.3.0
   path_provider: ^2.1.6
-  bronze_monkey_ffi:
-    path: ./bronze_monkey_ffi
+  hooks: ^2.0.2
+  code_assets: ^1.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  ffigen: ^20.1.1
+  yaml: ^3.1.3
+
+hooks:
+  user_defines:
+    retouched:
+      # A bronze-monkey checkout with the library built for each target under
+      # target/<rust triple>/<profile>/.
+      bronze_monkey_dir: ..
+      bronze_monkey_profile: release
 
 flutter:
   uses-material-design: true

@@ -3,14 +3,14 @@
 
 import 'dart:typed_data';
 
-const List<String> _touchStateNames = [
-  '',
-  'Began',
-  'Moved',
-  'Stationary',
-  'Ended',
-  'Cancelled',
-];
+import 'bronze_monkey.g.dart'
+    show
+        BMReliability,
+        ChannelType,
+        ControlMode,
+        DeviceType,
+        TouchPhase,
+        TouchState;
 
 Uint8List _bytes(dynamic v) {
   if (v == null) return Uint8List(0);
@@ -24,7 +24,7 @@ class BmRegistryInfo {
   final String appId;
   final int? currentPlayers;
   final int? maxPlayers;
-  final String deviceType;
+  final DeviceType deviceType;
   final String deviceId;
   final String deviceName;
   final String address;
@@ -52,7 +52,7 @@ class BmRegistryInfo {
       appId: (m['app_id'] as String?) ?? '',
       currentPlayers: m['current_players'] as int?,
       maxPlayers: m['max_players'] as int?,
-      deviceType: (device['device_type'] as String?) ?? 'Any',
+      deviceType: DeviceType.fromValue((device['device_type'] as int?) ?? 0),
       deviceId: (device['device_id'] as String?) ?? '',
       deviceName: (device['device_name'] as String?) ?? '',
       address: (addr['address'] as String?) ?? '',
@@ -75,7 +75,7 @@ class BmRegistryInfo {
       'device': {
         'device_id': deviceId,
         'device_name': deviceName,
-        'device_type': deviceType,
+        'device_type': deviceType.value,
         'address': addr,
       },
       'device_address': addr,
@@ -89,7 +89,7 @@ class TouchPointData {
   final double y;
   final int screenWidth;
   final int screenHeight;
-  final int state;
+  final TouchState state;
 
   const TouchPointData({
     required this.id,
@@ -106,20 +106,8 @@ class TouchPointData {
     'y': y,
     'screen_width': screenWidth,
     'screen_height': screenHeight,
-    'state': _touchStateNames[state],
+    'state': state.value,
   };
-}
-
-/// Stationary is absent on purpose: the engine reaches it once a set has gone,
-/// and a caller never observes it.
-enum BmTouchPhase {
-  began('Began'),
-  moved('Moved'),
-  ended('Ended'),
-  cancelled('Cancelled');
-
-  const BmTouchPhase(this.wireName);
-  final String wireName;
 }
 
 sealed class BmTouchEvent {
@@ -131,7 +119,7 @@ class BmPointerEvent extends BmTouchEvent {
   final int id;
   final double x;
   final double y;
-  final BmTouchPhase phase;
+  final TouchPhase phase;
   final int screenWidth;
   final int screenHeight;
 
@@ -150,7 +138,7 @@ class BmPointerEvent extends BmTouchEvent {
     'id': id,
     'x': x,
     'y': y,
-    'phase': phase.wireName,
+    'phase': phase.value,
     'screen_width': screenWidth,
     'screen_height': screenHeight,
   };
@@ -188,8 +176,9 @@ class BmVia {
 
 class BmOutgoing {
   final String targetDeviceId;
-  final int channel;
-  final int reliability;
+
+  final ChannelType channel;
+  final BMReliability reliability;
 
   /// Which path these bytes are built for.
   final BmVia via;
@@ -207,8 +196,8 @@ class BmOutgoing {
 
   factory BmOutgoing.fromWire(Map m) => BmOutgoing(
     (m['target_device_id'] as String?) ?? '',
-    (m['channel'] as int?) ?? 0,
-    (m['reliability'] as int?) ?? 0,
+    ChannelType.fromValue(m['channel'] as int),
+    BMReliability.fromValue(m['reliability'] as int),
     BmVia.fromWire(m['via']),
     _bytes(m['payload']),
   );
@@ -264,7 +253,10 @@ class BmEvent {
   int? get accelIntervalMs => raw['accel_interval_ms'] as int?;
   int? get gyroIntervalMs => raw['gyro_interval_ms'] as int?;
   int? get orientationIntervalMs => raw['orientation_interval_ms'] as int?;
-  String? get controlMode => raw['control_mode'] as String?;
+  ControlMode? get controlMode => switch (raw['control_mode']) {
+    final int code => ControlMode.fromValue(code),
+    _ => null,
+  };
   String? get portalId => raw['portal_id'] as String?;
   String? get returnAppId => raw['return_app_id'] as String?;
   String? get startString => raw['start_string'] as String?;

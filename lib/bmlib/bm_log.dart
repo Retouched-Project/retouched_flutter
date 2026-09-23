@@ -3,11 +3,12 @@
 
 import 'dart:typed_data';
 import 'package:msgpack_dart/msgpack_dart.dart' as mp;
+import 'bronze_monkey.g.dart' show LogLevel;
 
 class BmLogRecord {
   final int seq;
 
-  final String level;
+  final LogLevel level;
   final String target;
   final String message;
 
@@ -28,7 +29,7 @@ class BmLogDrain {
       final m = e as Map;
       return BmLogRecord(
         (m['seq'] as int?) ?? 0,
-        (m['level'] as String?) ?? 'Info',
+        LogLevel.fromValue(m['level'] as int),
         (m['target'] as String?) ?? '',
         (m['message'] as String?) ?? '',
       );

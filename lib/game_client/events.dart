@@ -91,7 +91,7 @@ extension GameClientEvents on GameClient {
 
   void _handleControlConfig(BmEvent cfg) {
     if (cfg.controlMode != null) {
-      // startString is the keyboard's initial text; only KEYBOARD mode sends it.
+      // startString is the keyboard's initial text; only Text mode sends it.
       _lastControlConfig = GameControlConfig(
         cfg.controlMode!,
         cfg.startString ?? '',

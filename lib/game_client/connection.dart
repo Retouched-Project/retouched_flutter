@@ -10,7 +10,6 @@ extension GameClientConnection on GameClient {
   }
 
   Future<void> connect({Duration timeout = const Duration(seconds: 5)}) async {
-    _lib.init();
     _registry.registerCompleter = Completer<void>();
     _registry.listCompleter = Completer<void>();
 
@@ -47,7 +46,7 @@ extension GameClientConnection on GameClient {
         _engine!,
         serverDeviceId,
         serverDeviceName,
-        'Server',
+        DeviceType.Server,
         server.ip,
         0,
         serverPort,
@@ -73,7 +72,7 @@ extension GameClientConnection on GameClient {
     if (_engine == null) return;
     _lib.configure(
       _engine!,
-      endpoint: 'Controller',
+      endpoint: EndpointMode.Controller,
       gyroscope: (capabilities & 1) != 0,
       orientation: (capabilities & 2) != 0,
       screenWidth: _screenWidth,

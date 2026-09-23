@@ -12,8 +12,7 @@ import '../utils/device_info.dart';
 import '../bmlib/bm_lib.dart';
 import '../bmrender/controls/scheme.pb.dart';
 import '../bmrender/controls/scheme_extensions.dart';
-import '../bmrender/controls/touch_enums.dart'
-    show ControlTouchPoint, TouchStateCodes;
+import '../bmrender/controls/touch_enums.dart' show ControlTouchPoint;
 import '../features/sensor_processor.dart';
 import '../features/registry_client.dart';
 import '../features/capabilities.dart';
@@ -48,7 +47,7 @@ void _safeCompleteError(Completer<void>? completer, Object error) {
 }
 
 class GameControlConfig {
-  final String mode;
+  final ControlMode mode;
   final String startString;
   const GameControlConfig(this.mode, this.startString);
 }
@@ -56,17 +55,17 @@ class GameControlConfig {
 class GameClient {
   final ServerEntry server;
   final BmLib _lib = BmLib.instance;
-  ffi.Pointer<ffi.Void>? _engine;
+  ffi.Pointer<Engine>? _engine;
 
   Socket? _socket;
   StreamSubscription<List<int>>? _sub;
   BmHandshaker? _registryHandshakerInst;
   BmHandshaker get _registryHandshaker =>
-      _registryHandshakerInst ??= _lib.createHandshaker(LinkRole.responder);
+      _registryHandshakerInst ??= _lib.createHandshaker(LinkRole.Responder);
 
   BmHandshaker? _gameHandshakerInst;
   BmHandshaker get _gameHandshaker =>
-      _gameHandshakerInst ??= _lib.createHandshaker(LinkRole.responder);
+      _gameHandshakerInst ??= _lib.createHandshaker(LinkRole.Responder);
 
   BmFramer? _registryFramerInst;
   BmFramer get _registryFramer => _registryFramerInst ??= _lib.createFramer();
@@ -125,7 +124,7 @@ class GameClient {
   String? _deviceId;
   String? _deviceName;
   String? _appId;
-  String _deviceType = 'Palm';
+  DeviceType _deviceType = DeviceType.Palm;
 
   BmRegistryInfo? _selfInfo;
   BmRegistryInfo? _activeGame;

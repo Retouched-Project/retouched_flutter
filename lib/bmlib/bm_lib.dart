@@ -3,13 +3,30 @@
 
 import 'dart:convert';
 import 'dart:ffi' as ffi;
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as mp;
 import 'bm_log.dart';
+import 'bronze_monkey.g.dart' as bm;
+import 'bronze_monkey.g.dart'
+    show DeviceType, EndpointMode, Engine, LinkRole, LogLevel, VersionCheck;
 import 'models.dart';
 
+export 'bronze_monkey.g.dart'
+    show
+        BMReliability,
+        ChannelType,
+        ControlMode,
+        DeviceType,
+        EndpointMode,
+        Engine,
+        LinkRole,
+        LogLevel,
+        PacketType,
+        Sensor,
+        TouchPhase,
+        TouchState,
+        VersionCheck;
 export 'models.dart';
 
 class BmLib {
@@ -17,457 +34,68 @@ class BmLib {
 
   static final BmLib instance = BmLib._();
 
-  late final ffi.DynamicLibrary _lib = _openLibrary();
-  bool _initialized = false;
+  ffi.Pointer<Engine> createEngine() => bm.bm_engine_new();
 
-  late final _bmLibraryInit = _lib
-      .lookupFunction<ffi.Uint8 Function(), int Function()>('bm_library_init');
-
-  late final _engineNew = _lib
-      .lookupFunction<
-        ffi.Pointer<ffi.Void> Function(),
-        ffi.Pointer<ffi.Void> Function()
-      >('bm_engine_new');
-
-  late final _engineFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_engine_free');
-
-  late final _bufferFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Uint8>, ffi.IntPtr),
-        void Function(ffi.Pointer<ffi.Uint8>, int)
-      >('bm_buffer_free');
-
-  late final _getLastError = _lib
-      .lookupFunction<
-        ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.IntPtr),
-        int Function(ffi.Pointer<ffi.Char>, int)
-      >('bm_get_last_error');
-
-  late final _initLocalDevice = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-        ),
-        bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
-      >('bm_engine_init_local_device');
-
-  late final _configure = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-        ),
-        bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int)
-      >('bm_engine_configure');
-
-  late final _processIncoming = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_engine_process_incoming');
-
-  late final _emit = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Uint64,
-          ffi.Bool,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          int,
-          bool,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_engine_emit');
-
-  late final _handleTime = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Uint64,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_engine_handle_time');
-
-  late final _handshake = _lib
-      .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Uint8>, ffi.IntPtr),
-        bool Function(ffi.Pointer<ffi.Uint8>, int)
-      >('bm_engine_handshake');
-
-  late final _framerNew = _lib
-      .lookupFunction<
-        ffi.Pointer<ffi.Void> Function(ffi.IntPtr),
-        ffi.Pointer<ffi.Void> Function(int)
-      >('bm_framer_new');
-
-  late final _framerFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_framer_free');
-
-  late final _framerFeed = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_framer_feed');
-
-  late final _handshakerNew = _lib
-      .lookupFunction<
-        ffi.Pointer<ffi.Void> Function(ffi.Int32),
-        ffi.Pointer<ffi.Void> Function(int)
-      >('bm_handshaker_new');
-
-  late final _handshakerFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_handshaker_free');
-
-  late final _handshakerOnConnect = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_handshaker_on_connect');
-
-  late final _handshakerOnMessage = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_handshaker_on_message');
-
-  late final _handshakerReset = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_handshaker_reset');
-
-  late final _framerReset = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_framer_reset');
-
-  late final _policyResponse = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_policy_response');
-
-  late final _policySnifferNew = _lib
-      .lookupFunction<
-        ffi.Pointer<ffi.Void> Function(),
-        ffi.Pointer<ffi.Void> Function()
-      >('bm_policy_sniffer_new');
-
-  late final _policySnifferFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_policy_sniffer_free');
-
-  late final _policySnifferFeed = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_policy_sniffer_feed');
-
-  late final _policySnifferIsWatching = _lib
-      .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Void>),
-        bool Function(ffi.Pointer<ffi.Void>)
-      >('bm_policy_sniffer_is_watching');
-
-  late final _policySnifferHungUp = _lib
-      .lookupFunction<
-        ffi.Bool Function(ffi.Pointer<ffi.Void>),
-        bool Function(ffi.Pointer<ffi.Void>)
-      >('bm_policy_sniffer_hung_up');
-
-  late final _policySnifferReset = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_policy_sniffer_reset');
-
-  late final _frame = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_frame');
-
-  late final _maxMessageLen = _lib
-      .lookupFunction<ffi.IntPtr Function(), int Function()>(
-        'bm_max_message_len',
-      );
-
-  late final _assemblerNew = _lib
-      .lookupFunction<
-        ffi.Pointer<ffi.Void> Function(),
-        ffi.Pointer<ffi.Void> Function()
-      >('bm_scheme_assembler_new');
-
-  late final _assemblerFree = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_scheme_assembler_free');
-
-  late final _assemblerOffer = _lib
-      .lookupFunction<
-        ffi.Int32 Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Uint8>,
-          ffi.IntPtr,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-          ffi.Pointer<ffi.Bool>,
-        ),
-        int Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Uint8>,
-          int,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-          ffi.Pointer<ffi.Bool>,
-        )
-      >('bm_scheme_assembler_offer');
-
-  late final _assemblerCurrent = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Void>,
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_scheme_assembler_current');
-
-  late final _assemblerReset = _lib
-      .lookupFunction<
-        ffi.Void Function(ffi.Pointer<ffi.Void>),
-        void Function(ffi.Pointer<ffi.Void>)
-      >('bm_scheme_assembler_reset');
-
-  late final _logConfigure = _lib
-      .lookupFunction<
-        ffi.Bool Function(ffi.Uint8, ffi.IntPtr),
-        bool Function(int, int)
-      >('bm_log_configure');
-
-  late final _logSetLevel = _lib
-      .lookupFunction<ffi.Bool Function(ffi.Uint8), bool Function(int)>(
-        'bm_log_set_level',
-      );
-
-  late final _logTake = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_log_take');
-
-  late final _generateDeviceId = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_generate_device_id');
-
-  late final _generateAppId = _lib
-      .lookupFunction<
-        ffi.Bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        ),
-        bool Function(
-          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-          ffi.Pointer<ffi.IntPtr>,
-        )
-      >('bm_generate_app_id');
-
-  void init() {
-    if (_initialized) return;
-    _bmLibraryInit();
-    _initialized = true;
-  }
-
-  ffi.Pointer<ffi.Void> createEngine() => _engineNew();
-
-  void freeEngine(ffi.Pointer<ffi.Void> engine) => _engineFree(engine);
+  void freeEngine(ffi.Pointer<Engine> engine) => bm.bm_engine_free(engine);
 
   BmSchemeAssembler createSchemeAssembler() =>
-      BmSchemeAssembler._(this, _assemblerNew());
+      BmSchemeAssembler._(bm.bm_scheme_assembler_new());
 
   /// Tracks the version exchange for one connection. A controller waits for
-  /// the other side and answers, so [LinkRole.responder] is the usual choice.
-  BmHandshaker createHandshaker(LinkRole role) =>
-      BmHandshaker._(this, _handshakerNew(role.code));
+  /// the other side and answers, so [LinkRole.Responder] should be used.
+  BmHandshaker createHandshaker(LinkRole role) {
+    final handshaker = bm.bm_handshaker_new(role.value);
+    if (handshaker == ffi.nullptr) throw BmError(_takeLastError());
+    return BmHandshaker._(this, handshaker);
+  }
 
   /// Rejects messages longer than [maxLen], or the library ceiling by default.
   BmFramer createFramer({int? maxLen}) =>
-      BmFramer._(this, _framerNew(maxLen ?? _maxMessageLen()));
+      BmFramer._(this, bm.bm_framer_new(maxLen ?? bm.bm_max_message_len()));
 
   BmPolicySniffer createPolicySniffer() =>
-      BmPolicySniffer._(this, _policySnifferNew());
+      BmPolicySniffer._(this, bm.bm_policy_sniffer_new());
 
-  late final Uint8List policyResponse = _readOutOnly(_policyResponse);
+  late final Uint8List policyResponse = _readOutOnly(bm.bm_policy_response);
 
-  int get maxMessageLen => _maxMessageLen();
+  int get maxMessageLen => bm.bm_max_message_len();
 
   /// Adds the length prefix a stream transport needs. Datagrams send the
   /// message as it is.
   Uint8List frame(Uint8List message) => _checked(
-    _callOut(message, (ptr, len, op, ol) => _frame(ptr, len, op, ol)),
+    _callOut(message, (ptr, len, op, ol) => bm.bm_frame(ptr, len, op, ol)),
   );
 
-  bool configureLogging(int level, int capacity) =>
-      _logConfigure(level, capacity);
+  bool configureLogging(LogLevel level, int capacity) =>
+      bm.bm_log_configure(level.value, capacity);
 
-  bool setLogLevel(int level) => _logSetLevel(level);
+  bool setLogLevel(LogLevel level) => bm.bm_log_set_level(level.value);
 
   BmLogDrain takeLogs() {
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
-    final ok = _logTake(outPtr, outLen);
+    final outLen = calloc<ffi.UintPtr>();
+    final ok = bm.bm_log_take(outPtr, outLen);
     final bytes = _readOut(ok, outPtr, outLen);
     calloc.free(outPtr);
     calloc.free(outLen);
     return BmLogDrain.fromBytes(bytes);
   }
 
-  String generateDeviceId() => _readIdString(_generateDeviceId);
+  String generateDeviceId() => _readIdString(bm.bm_generate_device_id);
 
-  String generateAppId() => _readIdString(_generateAppId);
+  String generateAppId() => _readIdString(bm.bm_generate_app_id);
 
   String _readIdString(
-    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.IntPtr>)
+    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.UintPtr>)
     call,
   ) => String.fromCharCodes(_readOutOnly(call));
 
   Uint8List _readOutOnly(
-    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.IntPtr>)
+    bool Function(ffi.Pointer<ffi.Pointer<ffi.Uint8>>, ffi.Pointer<ffi.UintPtr>)
     call,
   ) {
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
+    final outLen = calloc<ffi.UintPtr>();
     final ok = call(outPtr, outLen);
     final bytes = _readOut(ok, outPtr, outLen);
     calloc.free(outPtr);
@@ -478,12 +106,12 @@ class BmLib {
   Uint8List _readOut(
     bool ok,
     ffi.Pointer<ffi.Pointer<ffi.Uint8>> outPtr,
-    ffi.Pointer<ffi.IntPtr> outLen,
+    ffi.Pointer<ffi.UintPtr> outLen,
   ) {
     var result = Uint8List(0);
     if (ok && outPtr.value != ffi.nullptr && outLen.value > 0) {
       result = Uint8List.fromList(outPtr.value.asTypedList(outLen.value));
-      _bufferFree(outPtr.value, outLen.value);
+      bm.bm_buffer_free(outPtr.value, outLen.value);
     }
     return result;
   }
@@ -497,7 +125,7 @@ class BmLib {
       ffi.Pointer<ffi.Uint8>,
       int,
       ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
-      ffi.Pointer<ffi.IntPtr>,
+      ffi.Pointer<ffi.UintPtr>,
     )
     call,
   ) {
@@ -506,7 +134,7 @@ class BmLib {
       inPtr.asTypedList(input.length).setAll(0, input);
     }
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
+    final outLen = calloc<ffi.UintPtr>();
     final ok = call(inPtr, input.length, outPtr, outLen);
     final out = _readOut(ok, outPtr, outLen);
     calloc.free(inPtr);
@@ -522,7 +150,7 @@ class BmLib {
 
   String _takeLastError() {
     final buf = calloc<ffi.Char>(512);
-    final n = _getLastError(buf, 512);
+    final n = bm.bm_get_last_error(buf, 512);
     final message = n > 0 ? buf.cast<Utf8>().toDartString() : '';
     calloc.free(buf);
     return message.isEmpty ? 'no further detail' : message;
@@ -542,10 +170,10 @@ class BmLib {
   }
 
   void initLocalDevice(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String deviceId,
     String deviceName,
-    String deviceType,
+    DeviceType deviceType,
     String address,
     int unreliablePort,
     int reliablePort,
@@ -560,14 +188,17 @@ class BmLib {
         reliablePort,
       ),
     );
-    _callIn(core, (ptr, len) => _initLocalDevice(engine, ptr, len));
+    _callIn(
+      core,
+      (ptr, len) => bm.bm_engine_init_local_device(engine, ptr, len),
+    );
   }
 
   BmProcessOutput peerReachable(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String deviceId,
     String deviceName,
-    String deviceType,
+    DeviceType deviceType,
     String address,
     int unreliablePort,
     int reliablePort, {
@@ -590,9 +221,9 @@ class BmLib {
   /// A controller that opens its own sessions needs a screen, since it asks a
   /// game for a scheme to fit it.
   bool configure(
-    ffi.Pointer<ffi.Void> engine, {
+    ffi.Pointer<Engine> engine, {
     bool server = false,
-    String? endpoint,
+    EndpointMode? endpoint,
     bool opensSessions = true,
     bool gyroscope = false,
     bool orientation = false,
@@ -603,7 +234,7 @@ class BmLib {
   }) => _callIn(
     mp.serialize({
       'server': server,
-      'endpoint': endpoint,
+      'endpoint': endpoint?.value,
       'opens_sessions': opensSessions,
       'gyroscope': gyroscope,
       'orientation': orientation,
@@ -612,20 +243,20 @@ class BmLib {
       'approves_registrations': approvesRegistrations,
       'datagrams': datagrams,
     }),
-    (ptr, len) => _configure(engine, ptr, len),
+    (ptr, len) => bm.bm_engine_configure(engine, ptr, len),
   );
 
   Map<String, dynamic> _deviceCoreWire(
     String id,
     String name,
-    String type,
+    DeviceType type,
     String addr,
     int uport,
     int rport,
   ) => {
     'device_id': id,
     'device_name': name,
-    'device_type': type,
+    'device_type': type.value,
     'address': {
       'address': addr,
       'unreliable_port': uport,
@@ -635,7 +266,7 @@ class BmLib {
 
   Uint8List handshakeBytes() {
     final out = calloc<ffi.Uint8>(12);
-    _handshake(out, 12);
+    bm.bm_engine_handshake(out, 12);
     final bytes = Uint8List.fromList(out.asTypedList(12));
     calloc.free(out);
     return bytes;
@@ -644,7 +275,7 @@ class BmLib {
   /// [source] is where the transport says the bytes came from. A transport
   /// that carries no addressing leaves it null and the engine invents none.
   BmProcessOutput processIncoming(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     Uint8List data, {
     String? source,
     bool datagram = false,
@@ -663,7 +294,7 @@ class BmLib {
     }
     final out = _callOut(
       data,
-      (ptr, len, op, ol) => _processIncoming(
+      (ptr, len, op, ol) => bm.bm_engine_process_incoming(
         engine,
         ptr,
         len,
@@ -679,10 +310,10 @@ class BmLib {
 
   /// Tells the engine what time it is, in milliseconds on any monotonic
   /// clock. Anything due fires, and the output names the next wanted moment.
-  BmProcessOutput handleTime(ffi.Pointer<ffi.Void> engine, int nowMs) {
+  BmProcessOutput handleTime(ffi.Pointer<Engine> engine, int nowMs) {
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
-    final ok = _handleTime(engine, nowMs, outPtr, outLen);
+    final outLen = calloc<ffi.UintPtr>();
+    final ok = bm.bm_engine_handle_time(engine, nowMs, outPtr, outLen);
     final out = _readOut(ok, outPtr, outLen);
     calloc.free(outPtr);
     calloc.free(outLen);
@@ -697,14 +328,21 @@ class BmLib {
   /// hold a paced command back until its turn; passing none never holds
   /// anything back.
   BmProcessOutput emit(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     Map<String, dynamic> command, {
     int? nowMs,
   }) {
     final out = _callOut(
       mp.serialize(command),
-      (ptr, len, op, ol) =>
-          _emit(engine, ptr, len, nowMs ?? 0, nowMs != null, op, ol),
+      (ptr, len, op, ol) => bm.bm_engine_emit(
+        engine,
+        ptr,
+        len,
+        nowMs ?? 0,
+        nowMs != null,
+        op,
+        ol,
+      ),
     );
     return _decodeProcessOutput(_checked(out));
   }
@@ -729,7 +367,7 @@ class BmLib {
   }
 
   List<BmOutgoing> makeRegistryRegister(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     BmRegistryInfo info,
     String? domain,
@@ -742,7 +380,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeRegistryList(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
   ) => emit(engine, {
     'type': 'RequestHostList',
@@ -751,7 +389,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeDeviceConnectRequested(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     String gameDeviceId,
   ) => emit(engine, {
@@ -761,7 +399,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeRequestXml(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     int width,
     int height,
@@ -773,7 +411,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeOnControlSchemeParsed(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
   ) => emit(engine, {
     'type': 'ControlSchemeParsed',
@@ -781,7 +419,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeButtonInvoke(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     String handler,
     bool pressed,
@@ -793,7 +431,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeDpadUpdate(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     int x,
     int y,
@@ -805,7 +443,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeSendKeyString(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     String key,
   ) => emit(engine, {
@@ -815,7 +453,7 @@ class BmLib {
   }).outgoings;
 
   List<BmOutgoing> makeSendNavigation(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     String nav,
   ) => emit(engine, {
@@ -824,7 +462,7 @@ class BmLib {
     'nav': nav,
   }).outgoings;
 
-  void declareTouch(ffi.Pointer<ffi.Void> engine, bool enabled, int nowMs) {
+  void declareTouch(ffi.Pointer<Engine> engine, bool enabled, int nowMs) {
     emit(engine, {'type': 'DeclareTouch', 'enabled': enabled}, nowMs: nowMs);
   }
 
@@ -833,7 +471,7 @@ class BmLib {
   /// back with nothing to send and [BmProcessOutput.nextSendMs] naming the
   /// moment to try again.
   BmProcessOutput makeTouchEvents(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     List<BmTouchEvent> events,
     int nowMs,
@@ -846,7 +484,7 @@ class BmLib {
   /// Sends a set the caller assembled itself, unbatched. For input that does
   /// not arrive as a pointer stream.
   List<BmOutgoing> makeTouchSet(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     List<TouchPointData> touches,
   ) => emit(engine, {
@@ -860,7 +498,7 @@ class BmLib {
   /// These return the whole output because [BmProcessOutput.nextSendMs] is the
   /// point: hold on to it and skip the call until then.
   BmProcessOutput makeAccel(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     double x,
     double y,
@@ -875,7 +513,7 @@ class BmLib {
   }, nowMs: nowMs);
 
   BmProcessOutput makeGyro(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     double x,
     double y,
@@ -890,7 +528,7 @@ class BmLib {
   }, nowMs: nowMs);
 
   BmProcessOutput makeOrientation(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     double x,
     double y,
@@ -907,7 +545,7 @@ class BmLib {
   }, nowMs: nowMs);
 
   List<BmOutgoing> makeSetCapabilities(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     int capabilities,
   ) => emit(engine, {
@@ -917,11 +555,11 @@ class BmLib {
     'orientation': (capabilities & 2) != 0,
   }).outgoings;
 
-  List<BmOutgoing> makePause(ffi.Pointer<ffi.Void> engine, String targetId) =>
+  List<BmOutgoing> makePause(ffi.Pointer<Engine> engine, String targetId) =>
       emit(engine, {'type': 'Pause', 'target': targetId}).outgoings;
 
   List<BmOutgoing> makeMenuEvent(
-    ffi.Pointer<ffi.Void> engine,
+    ffi.Pointer<Engine> engine,
     String targetId,
     String event,
   ) => emit(engine, {
@@ -929,19 +567,6 @@ class BmLib {
     'target': targetId,
     'event': event,
   }).outgoings;
-
-  ffi.DynamicLibrary _openLibrary() {
-    if (Platform.isWindows) {
-      return ffi.DynamicLibrary.open('bronze_monkey.dll');
-    }
-    if (Platform.isMacOS) {
-      return ffi.DynamicLibrary.open('libbronze_monkey.dylib');
-    }
-    if (Platform.isIOS) {
-      return ffi.DynamicLibrary.process();
-    }
-    return ffi.DynamicLibrary.open('libbronze_monkey.so');
-  }
 }
 
 class BmSchemeOffer {
@@ -955,21 +580,6 @@ class BmSchemeOffer {
   bool get isUpdated => kind == 2;
   bool get isNotScheme => kind == 0;
 }
-
-/// Which side of a connection speaks first.
-enum LinkRole {
-  /// Announces itself as soon as the connection is up.
-  initiator(0),
-
-  /// Waits for the other side, then answers.
-  responder(1);
-
-  const LinkRole(this.code);
-  final int code;
-}
-
-/// How the two versions compare.
-enum VersionCheck { compatible, localTooOld, remoteTooOld, unknown }
 
 /// The result of offering one message to a [BmHandshaker].
 class HandshakeOutcome {
@@ -985,10 +595,10 @@ class HandshakeOutcome {
   static const passthroughResult = HandshakeOutcome._(
     true,
     null,
-    VersionCheck.compatible,
+    VersionCheck.Compatible,
   );
 
-  bool get compatible => check == VersionCheck.compatible;
+  bool get compatible => check == VersionCheck.Compatible;
 }
 
 /// The library refused a call, and this is what it said.
@@ -1010,7 +620,7 @@ class BmFramingException implements Exception {
 /// Tracks the version exchange for one connection.
 class BmHandshaker {
   final BmLib _lib;
-  ffi.Pointer<ffi.Void> _ptr;
+  ffi.Pointer<bm.Handshaker> _ptr;
 
   BmHandshaker._(this._lib, this._ptr);
 
@@ -1018,8 +628,8 @@ class BmHandshaker {
   Uint8List? onConnect() {
     if (_ptr == ffi.nullptr) return null;
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
-    final ok = _lib._handshakerOnConnect(_ptr, outPtr, outLen);
+    final outLen = calloc<ffi.UintPtr>();
+    final ok = bm.bm_handshaker_on_connect(_ptr, outPtr, outLen);
     final bytes = _lib._readOut(ok, outPtr, outLen);
     calloc.free(outPtr);
     calloc.free(outLen);
@@ -1032,7 +642,8 @@ class BmHandshaker {
     final out = _lib._checked(
       _lib._callOut(
         message,
-        (ptr, len, op, ol) => _lib._handshakerOnMessage(_ptr, ptr, len, op, ol),
+        (ptr, len, op, ol) =>
+            bm.bm_handshaker_on_message(_ptr, ptr, len, op, ol),
       ),
     );
     if (out.isEmpty) return HandshakeOutcome.passthroughResult;
@@ -1044,24 +655,19 @@ class BmHandshaker {
     return HandshakeOutcome._(
       false,
       reply == null ? null : Uint8List.fromList(List<int>.from(reply)),
-      switch (decoded['check']) {
-        'Compatible' => VersionCheck.compatible,
-        'LocalTooOld' => VersionCheck.localTooOld,
-        'RemoteTooOld' => VersionCheck.remoteTooOld,
-        _ => VersionCheck.unknown,
-      },
+      VersionCheck.fromValue(decoded['check'] as int),
     );
   }
 
   /// Forgets the exchange so a reconnect starts over. A handshaker that still
   /// thinks it has spoken will never answer the next connection.
   void reset() {
-    if (_ptr != ffi.nullptr) _lib._handshakerReset(_ptr);
+    if (_ptr != ffi.nullptr) bm.bm_handshaker_reset(_ptr);
   }
 
   void dispose() {
     if (_ptr != ffi.nullptr) {
-      _lib._handshakerFree(_ptr);
+      bm.bm_handshaker_free(_ptr);
       _ptr = ffi.nullptr;
     }
   }
@@ -1078,14 +684,14 @@ class PolicySniff {
 
 class BmPolicySniffer {
   final BmLib _lib;
-  ffi.Pointer<ffi.Void> _ptr;
+  ffi.Pointer<bm.Sniffer> _ptr;
 
   BmPolicySniffer._(this._lib, this._ptr);
 
   bool get isWatching =>
-      _ptr != ffi.nullptr && _lib._policySnifferIsWatching(_ptr);
+      _ptr != ffi.nullptr && bm.bm_policy_sniffer_is_watching(_ptr);
 
-  bool hungUp() => _ptr != ffi.nullptr && _lib._policySnifferHungUp(_ptr);
+  bool hungUp() => _ptr != ffi.nullptr && bm.bm_policy_sniffer_hung_up(_ptr);
 
   PolicySniff feed(List<int> data) {
     if (_ptr == ffi.nullptr) {
@@ -1098,7 +704,7 @@ class BmPolicySniffer {
     final out = _lib._checked(
       _lib._callOut(
         bytes,
-        (ptr, len, op, ol) => _lib._policySnifferFeed(_ptr, ptr, len, op, ol),
+        (ptr, len, op, ol) => bm.bm_policy_sniffer_feed(_ptr, ptr, len, op, ol),
       ),
     );
     if (out.isEmpty) return PolicySniff.waitResult;
@@ -1118,12 +724,12 @@ class BmPolicySniffer {
 
   /// Starts over, so the next connection is watched from its first byte.
   void reset() {
-    if (_ptr != ffi.nullptr) _lib._policySnifferReset(_ptr);
+    if (_ptr != ffi.nullptr) bm.bm_policy_sniffer_reset(_ptr);
   }
 
   void dispose() {
     if (_ptr != ffi.nullptr) {
-      _lib._policySnifferFree(_ptr);
+      bm.bm_policy_sniffer_free(_ptr);
       _ptr = ffi.nullptr;
     }
   }
@@ -1132,7 +738,7 @@ class BmPolicySniffer {
 /// Reassembles messages from a stream that arrives in arbitrary pieces.
 class BmFramer {
   final BmLib _lib;
-  ffi.Pointer<ffi.Void> _ptr;
+  ffi.Pointer<bm.Framer> _ptr;
 
   BmFramer._(this._lib, this._ptr);
 
@@ -1144,7 +750,7 @@ class BmFramer {
     final bytes = data is Uint8List ? data : Uint8List.fromList(data);
     final out = _lib._callOut(
       bytes,
-      (ptr, len, op, ol) => _lib._framerFeed(_ptr, ptr, len, op, ol),
+      (ptr, len, op, ol) => bm.bm_framer_feed(_ptr, ptr, len, op, ol),
     );
     if (out == null) {
       throw BmFramingException(_lib._takeLastError());
@@ -1155,22 +761,21 @@ class BmFramer {
 
   /// Drops anything half read, for when a connection restarts.
   void reset() {
-    if (_ptr != ffi.nullptr) _lib._framerReset(_ptr);
+    if (_ptr != ffi.nullptr) bm.bm_framer_reset(_ptr);
   }
 
   void dispose() {
     if (_ptr != ffi.nullptr) {
-      _lib._framerFree(_ptr);
+      bm.bm_framer_free(_ptr);
       _ptr = ffi.nullptr;
     }
   }
 }
 
 class BmSchemeAssembler {
-  final BmLib _lib;
-  ffi.Pointer<ffi.Void> _ptr;
+  ffi.Pointer<bm.SchemeAssembler> _ptr;
 
-  BmSchemeAssembler._(this._lib, this._ptr);
+  BmSchemeAssembler._(this._ptr);
 
   BmSchemeOffer offer(String setId, Uint8List blob) {
     final setIdBytes = utf8.encode(setId);
@@ -1185,10 +790,10 @@ class BmSchemeAssembler {
       blobPtr.asTypedList(blob.length).setAll(0, blob);
     }
     final outScheme = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
+    final outLen = calloc<ffi.UintPtr>();
     final outInitial = calloc<ffi.Bool>();
 
-    final kind = _lib._assemblerOffer(
+    final kind = bm.bm_scheme_assembler_offer(
       _ptr,
       setIdPtr,
       setIdBytes.length,
@@ -1205,7 +810,7 @@ class BmSchemeAssembler {
       initial = outInitial.value;
       if (outScheme.value != ffi.nullptr && outLen.value > 0) {
         scheme = Uint8List.fromList(outScheme.value.asTypedList(outLen.value));
-        _lib._bufferFree(outScheme.value, outLen.value);
+        bm.bm_buffer_free(outScheme.value, outLen.value);
       }
     }
 
@@ -1219,23 +824,23 @@ class BmSchemeAssembler {
 
   Uint8List? current() {
     final outPtr = calloc<ffi.Pointer<ffi.Uint8>>();
-    final outLen = calloc<ffi.IntPtr>();
-    final ok = _lib._assemblerCurrent(_ptr, outPtr, outLen);
+    final outLen = calloc<ffi.UintPtr>();
+    final ok = bm.bm_scheme_assembler_current(_ptr, outPtr, outLen);
     Uint8List? result;
     if (ok && outPtr.value != ffi.nullptr && outLen.value > 0) {
       result = Uint8List.fromList(outPtr.value.asTypedList(outLen.value));
-      _lib._bufferFree(outPtr.value, outLen.value);
+      bm.bm_buffer_free(outPtr.value, outLen.value);
     }
     calloc.free(outPtr);
     calloc.free(outLen);
     return result;
   }
 
-  void reset() => _lib._assemblerReset(_ptr);
+  void reset() => bm.bm_scheme_assembler_reset(_ptr);
 
   void dispose() {
     if (_ptr != ffi.nullptr) {
-      _lib._assemblerFree(_ptr);
+      bm.bm_scheme_assembler_free(_ptr);
       _ptr = ffi.nullptr;
     }
   }

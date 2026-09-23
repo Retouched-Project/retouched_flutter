@@ -31,7 +31,7 @@ class SensorProcessor {
   int? _gyroNextMs;
   int? _orientationNextMs;
 
-  ffi.Pointer<ffi.Void> Function()? getEngine;
+  ffi.Pointer<Engine> Function()? getEngine;
   String? Function()? getActiveGameDeviceId;
   void Function(List<BmOutgoing>)? sendActions;
 

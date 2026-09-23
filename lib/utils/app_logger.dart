@@ -28,12 +28,12 @@ String levelLabel(Level l) {
   return 'Trace';
 }
 
-int libCode(Level l) {
-  if (l >= Level.SEVERE) return 1;
-  if (l >= Level.WARNING) return 2;
-  if (l >= Level.INFO) return 3;
-  if (l >= Level.FINE) return 4;
-  return 5;
+LogLevel libLevel(Level l) {
+  if (l >= Level.SEVERE) return LogLevel.Error;
+  if (l >= Level.WARNING) return LogLevel.Warn;
+  if (l >= Level.INFO) return LogLevel.Info;
+  if (l >= Level.FINE) return LogLevel.Debug;
+  return LogLevel.Trace;
 }
 
 void setupLogging({int capacity = LogStore.maxEntries}) {
@@ -56,16 +56,14 @@ void setupLogging({int capacity = LogStore.maxEntries}) {
     );
   });
 
-  final lib = BmLib.instance;
-  lib.init();
-  lib.configureLogging(libCode(logLevel), capacity);
+  BmLib.instance.configureLogging(libLevel(logLevel), capacity);
   startLogDrain();
 }
 
 void setLogLevel(Level level) {
   logLevel = level;
   Logger.root.level = level;
-  BmLib.instance.setLogLevel(libCode(level));
+  BmLib.instance.setLogLevel(libLevel(level));
 }
 
 void startLogDrain() {
@@ -81,7 +79,7 @@ void startLogDrain() {
         name: r.target,
         level: _engineLevelValue(r.level),
       );
-      batch.add(LogEntry(DateTime.now(), r.level, r.target, r.message));
+      batch.add(LogEntry(DateTime.now(), r.level.name, r.target, r.message));
     }
     if (drain.dropped > 0) {
       final msg = '${drain.dropped} lib log records dropped (ring overflow)';
@@ -92,19 +90,10 @@ void startLogDrain() {
   });
 }
 
-int _engineLevelValue(String name) {
-  switch (name) {
-    case 'Error':
-      return Level.SEVERE.value;
-    case 'Warn':
-      return Level.WARNING.value;
-    case 'Info':
-      return Level.INFO.value;
-    case 'Debug':
-      return Level.FINE.value;
-    case 'Trace':
-      return Level.FINEST.value;
-    default:
-      return Level.INFO.value;
-  }
-}
+int _engineLevelValue(LogLevel level) => switch (level) {
+  LogLevel.Error => Level.SEVERE.value,
+  LogLevel.Warn => Level.WARNING.value,
+  LogLevel.Info => Level.INFO.value,
+  LogLevel.Debug => Level.FINE.value,
+  LogLevel.Trace => Level.FINEST.value,
+};
