@@ -45,7 +45,7 @@ class GamesTab extends StatelessWidget {
               itemBuilder: (context, i) {
                 final game = games[i];
                 final iconUrl =
-                    'http://${client.server.ip}:8080/apps/icons/${game.appId}.png';
+                    'http://${client.server.ip}:${client.server.httpPort}/apps/icons/${game.appId}.png';
                 return ListTile(
                   leading: SizedBox(
                     width: 48,

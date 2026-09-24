@@ -8,21 +8,46 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../game_client/game_client.dart';
 
 class ServerEntry {
+  static const int defaultRegistryPort = 8088;
+  static const int defaultHttpPort = 8080;
+
   final String name;
   final String ip;
   final String? localIp;
-  const ServerEntry({required this.name, required this.ip, this.localIp});
+  final int registryPort;
+  final int httpPort;
+
+  const ServerEntry({
+    required this.name,
+    required this.ip,
+    this.localIp,
+    this.registryPort = defaultRegistryPort,
+    this.httpPort = defaultHttpPort,
+  });
+
+  String get address => '$ip:$registryPort';
+
+  bool sameServerAs(ServerEntry other) =>
+      ip == other.ip &&
+      registryPort == other.registryPort &&
+      httpPort == other.httpPort;
+
   Map<String, dynamic> toJson() => {
     'name': name,
     'ip': ip,
     'local_ip': localIp,
+    'registry_port': registryPort,
+    'http_port': httpPort,
   };
+
   factory ServerEntry.fromJson(Map<String, dynamic> json) => ServerEntry(
     name: json['name'] as String,
     ip: json['ip'] as String,
     localIp: (json['local_ip'] as String?)?.trim().isEmpty == true
         ? null
         : json['local_ip'] as String?,
+    registryPort: (json['registry_port'] as int?) ?? defaultRegistryPort,
+    httpPort: (json['http_port'] as int?) ?? defaultHttpPort,
   );
 }
 

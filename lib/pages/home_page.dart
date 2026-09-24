@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage>
   bool _pendingServerDisconnect = false;
   StreamSubscription<void>? _disconnSub;
   Future<void>? _closingStaleClient;
-  String? _connectingIp;
+  ServerEntry? _connecting;
 
   @override
   void initState() {
@@ -95,7 +95,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _connectToServer(ServerEntry server) async {
-    if (_connectingIp != null) return;
+    if (_connecting != null) return;
 
     final physicalSize = View.of(context).physicalSize;
 
@@ -127,7 +127,7 @@ class _HomePageState extends State<HomePage>
     newClient.setCapabilitiesOverride(_capabilitiesOverride);
 
     setState(() {
-      _connectingIp = server.ip;
+      _connecting = server;
       _error = null;
     });
 
@@ -141,7 +141,7 @@ class _HomePageState extends State<HomePage>
       }
       setState(() {
         _client = newClient;
-        _connectingIp = null;
+        _connecting = null;
       });
       _disconnSub = newClient.disconnectedStream.listen((_) {
         if (!mounted) return;
@@ -169,7 +169,7 @@ class _HomePageState extends State<HomePage>
       setState(() {
         _error = e;
         _client = null;
-        _connectingIp = null;
+        _connecting = null;
       });
     }
   }
@@ -306,7 +306,7 @@ class _HomePageState extends State<HomePage>
               ServersTab(
                 serverMgr: _serverMgr,
                 client: _client,
-                connectingIp: _connectingIp,
+                connecting: _connecting,
                 error: _error,
                 lastServer: _lastServer,
                 onConnect: _connectToServer,

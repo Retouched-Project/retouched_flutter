@@ -11,6 +11,7 @@ class MetricsService {
     required int type,
     required String appId,
     required String serverIp,
+    required int httpPort,
     required String deviceId,
   }) {
     final epoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -19,7 +20,7 @@ class MetricsService {
     );
     final body =
         'action=logEvents&events=$events&token=${Uri.encodeComponent(deviceId)}';
-    final url = Uri.parse('http://$serverIp:8080/bmregistry/metrics');
+    final url = Uri.parse('http://$serverIp:$httpPort/bmregistry/metrics');
     HttpClient()
         .postUrl(url)
         .then((req) {

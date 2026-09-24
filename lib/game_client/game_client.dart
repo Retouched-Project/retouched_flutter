@@ -29,7 +29,6 @@ final _log = Logger('retouched.GameClient');
 
 const int clientPort = 9081;
 const int udpPort = 9080;
-const int serverPort = 8088;
 
 const String serverDeviceId = 'server';
 const String serverDeviceName = 'Registry';

@@ -12,7 +12,7 @@ class ServersTab extends StatelessWidget {
     super.key,
     required this.serverMgr,
     required this.client,
-    required this.connectingIp,
+    required this.connecting,
     required this.error,
     required this.lastServer,
     required this.onConnect,
@@ -22,7 +22,7 @@ class ServersTab extends StatelessWidget {
 
   final ServerManager serverMgr;
   final GameClient? client;
-  final String? connectingIp;
+  final ServerEntry? connecting;
   final Object? error;
   final ServerEntry? lastServer;
   final void Function(ServerEntry server) onConnect;
@@ -48,9 +48,9 @@ class ServersTab extends StatelessWidget {
                     const Divider(height: 1, color: Colors.white24),
                 itemBuilder: (context, index) {
                   final s = servers[index];
-                  final isConnected = client?.server.ip == s.ip;
-                  final isConnecting = connectingIp == s.ip;
-                  final busy = connectingIp != null;
+                  final isConnected = identical(client?.server, s);
+                  final isConnecting = identical(connecting, s);
+                  final busy = connecting != null;
                   return ListTile(
                     textColor: Colors.white,
                     iconColor: Colors.white,
@@ -65,7 +65,7 @@ class ServersTab extends StatelessWidget {
                         : const Icon(Icons.dns),
                     title: Text(s.name),
                     subtitle: Text(
-                      s.ip,
+                      s.address,
                       style: const TextStyle(color: Colors.white70),
                     ),
                     onTap: busy ? null : () => onConnect(s),
@@ -89,12 +89,13 @@ class ServersTab extends StatelessWidget {
                                 ? null
                                 : () => _editServer(context, index, s),
                           ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: busy
-                              ? null
-                              : () => serverMgr.removeAt(index),
-                        ),
+                        if (!isConnected)
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: busy
+                                ? null
+                                : () => serverMgr.removeAt(index),
+                          ),
                       ],
                     ),
                   );
@@ -107,7 +108,7 @@ class ServersTab extends StatelessWidget {
               ErrorBanner(
                 error: error,
                 onDismiss: onDismissError,
-                onRetry: (lastServer != null && connectingIp == null)
+                onRetry: (lastServer != null && connecting == null)
                     ? () => onConnect(lastServer!)
                     : null,
               ),
@@ -131,7 +132,13 @@ class ServersTab extends StatelessWidget {
   ) async {
     final ServerEntry? edited = await showDialog<ServerEntry>(
       context: context,
-      builder: (context) => AddServerDialog(initial: server),
+      builder: (context) => AddServerDialog(
+        initial: server,
+        others: [
+          for (final (i, other) in serverMgr.servers.indexed)
+            if (i != index) other,
+        ],
+      ),
     );
     if (edited != null) {
       await serverMgr.replaceAt(index, edited);
@@ -141,7 +148,7 @@ class ServersTab extends StatelessWidget {
   Future<void> _openAddServerDialog(BuildContext context) async {
     final ServerEntry? added = await showDialog<ServerEntry>(
       context: context,
-      builder: (context) => const AddServerDialog(),
+      builder: (context) => AddServerDialog(others: serverMgr.servers),
     );
     if (added != null) {
       await serverMgr.add(added);

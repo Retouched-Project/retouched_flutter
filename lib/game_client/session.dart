@@ -38,6 +38,7 @@ extension GameClientSession on GameClient {
       type: MetricsService.sessionStart,
       appId: game.appId,
       serverIp: server.ip,
+      httpPort: server.httpPort,
       deviceId: _deviceId ?? '',
     );
   }
@@ -60,6 +61,7 @@ extension GameClientSession on GameClient {
         type: MetricsService.sessionEnd,
         appId: game.appId,
         serverIp: server.ip,
+        httpPort: server.httpPort,
         deviceId: _deviceId ?? '',
       );
       // The engine must be told the peer is gone,

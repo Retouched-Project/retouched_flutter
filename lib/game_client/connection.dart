@@ -14,7 +14,11 @@ extension GameClientConnection on GameClient {
     _registry.listCompleter = Completer<void>();
 
     try {
-      _socket = await Socket.connect(server.ip, serverPort, timeout: timeout);
+      _socket = await Socket.connect(
+        server.ip,
+        server.registryPort,
+        timeout: timeout,
+      );
       _socket!.setOption(SocketOption.tcpNoDelay, true);
       _sub = _socket!.listen(
         _onData,
@@ -49,7 +53,7 @@ extension GameClientConnection on GameClient {
         DeviceType.Server,
         server.ip,
         0,
-        serverPort,
+        server.registryPort,
       );
 
       await _bindGameListeners();
